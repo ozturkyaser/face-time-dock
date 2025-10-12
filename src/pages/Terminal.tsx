@@ -1,16 +1,18 @@
 import { useState, useEffect, useRef } from "react";
-import { Camera, CheckCircle, XCircle, Clock, UserPlus } from "lucide-react";
+import { Camera, CheckCircle, XCircle, Clock, UserPlus, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import FaceRegistration from "@/components/terminal/FaceRegistration";
+import VacationRequest from "@/components/terminal/VacationRequest";
 
 const Terminal = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [employees, setEmployees] = useState<any[]>([]);
   const [lastCheckIn, setLastCheckIn] = useState<any>(null);
   const [showRegistration, setShowRegistration] = useState(false);
+  const [showVacationRequest, setShowVacationRequest] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -140,6 +142,15 @@ const Terminal = () => {
           onCancel={() => setShowRegistration(false)}
         />
       )}
+
+      {showVacationRequest && (
+        <VacationRequest
+          onComplete={() => {
+            setShowVacationRequest(false);
+          }}
+          onCancel={() => setShowVacationRequest(false)}
+        />
+      )}
       
       <div className="max-w-6xl mx-auto space-y-8">
         <div className="text-center space-y-2">
@@ -179,20 +190,32 @@ const Terminal = () => {
                   ) : (
                     <>
                       <Camera className="mr-2 h-6 w-6" />
-                      Gesicht scannen
+                      Ein-/Ausstempeln
                     </>
                   )}
                 </Button>
-                
-                <Button
-                  size="lg"
-                  variant="outline"
-                  onClick={() => setShowRegistration(true)}
-                  className="w-full h-14 text-base font-semibold shadow-md hover:bg-primary/10"
-                >
-                  <UserPlus className="mr-2 h-5 w-5" />
-                  Neu? Gesicht registrieren
-                </Button>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    onClick={() => setShowVacationRequest(true)}
+                    className="h-14 text-base font-semibold shadow-md hover:bg-accent/10 border-accent/20"
+                  >
+                    <CalendarDays className="mr-2 h-5 w-5" />
+                    Urlaubsantrag
+                  </Button>
+                  
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    onClick={() => setShowRegistration(true)}
+                    className="h-14 text-base font-semibold shadow-md hover:bg-primary/10"
+                  >
+                    <UserPlus className="mr-2 h-5 w-5" />
+                    Registrierung
+                  </Button>
+                </div>
               </div>
             </div>
 

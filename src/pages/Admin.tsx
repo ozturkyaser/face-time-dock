@@ -114,22 +114,22 @@ const Admin = () => {
         </div>
 
         <Tabs defaultValue="employees" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
-            <TabsTrigger value="employees" className="gap-2">
-              <Users className="h-4 w-4" />
-              Mitarbeiter
+          <TabsList className="grid w-full grid-cols-4 h-auto p-1">
+            <TabsTrigger value="employees" className="flex flex-col gap-1 py-3">
+              <Users className="h-5 w-5" />
+              <span className="text-xs sm:text-sm">Mitarbeiter</span>
             </TabsTrigger>
-            <TabsTrigger value="time" className="gap-2">
-              <Clock className="h-4 w-4" />
-              Zeiterfassung
+            <TabsTrigger value="time" className="flex flex-col gap-1 py-3">
+              <Clock className="h-5 w-5" />
+              <span className="text-xs sm:text-sm">Zeiterfassung</span>
             </TabsTrigger>
-            <TabsTrigger value="vacation" className="gap-2">
-              <Calendar className="h-4 w-4" />
-              Urlaub
+            <TabsTrigger value="vacation" className="flex flex-col gap-1 py-3">
+              <Calendar className="h-5 w-5" />
+              <span className="text-xs sm:text-sm">Urlaub</span>
             </TabsTrigger>
-            <TabsTrigger value="advances" className="gap-2">
-              <DollarSign className="h-4 w-4" />
-              Vorschüsse
+            <TabsTrigger value="advances" className="flex flex-col gap-1 py-3">
+              <DollarSign className="h-5 w-5" />
+              <span className="text-xs sm:text-sm">Vorschüsse</span>
             </TabsTrigger>
           </TabsList>
 
