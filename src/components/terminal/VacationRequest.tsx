@@ -192,20 +192,20 @@ const VacationRequest = ({ onComplete, onCancel }: VacationRequestProps) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-4xl shadow-2xl">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-2xl">
-            <Calendar className="h-6 w-6 text-primary" />
+    <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+      <Card className="w-full max-w-2xl shadow-2xl my-4 max-h-[95vh] overflow-y-auto">
+        <CardHeader className="space-y-1 pb-4">
+          <CardTitle className="flex items-center gap-2 text-xl sm:text-2xl">
+            <Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
             Urlaubsantrag
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-sm">
             {step === "auth" 
-              ? "Schauen Sie in die Kamera für die Authentifizierung" 
+              ? "Authentifizierung per Gesichtserkennung" 
               : "Geben Sie die Urlaubsdaten ein"}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4">
           {step === "auth" ? (
             <div className="space-y-4">
               <div className="bg-muted rounded-lg overflow-hidden aspect-video relative">
@@ -216,17 +216,21 @@ const VacationRequest = ({ onComplete, onCancel }: VacationRequestProps) => {
                   className="w-full h-full object-cover"
                 />
                 <canvas ref={canvasRef} className="hidden" />
-                <div className="absolute inset-0 border-4 border-primary/30 rounded-lg pointer-events-none">
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-80 border-4 border-primary/60 rounded-full" />
+                <div className="absolute inset-0 border-2 border-primary/30 rounded-lg pointer-events-none">
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-64 sm:w-64 sm:h-80 border-2 sm:border-4 border-primary/60 rounded-full" />
                 </div>
               </div>
 
-              <div className="flex gap-4">
+              <p className="text-xs text-center text-muted-foreground px-2">
+                📸 Schauen Sie in die Kamera zur Authentifizierung
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-3">
                 <Button
                   variant="outline"
                   size="lg"
                   onClick={onCancel}
-                  className="flex-1"
+                  className="flex-1 h-12"
                 >
                   Abbrechen
                 </Button>
@@ -234,45 +238,45 @@ const VacationRequest = ({ onComplete, onCancel }: VacationRequestProps) => {
                   size="lg"
                   onClick={recognizeFace}
                   disabled={isProcessing}
-                  className="flex-1 bg-gradient-to-r from-primary to-primary/80"
+                  className="flex-1 h-12 bg-gradient-to-r from-primary to-primary/80"
                 >
                   {isProcessing ? (
-                    "Erkenne Gesicht..."
+                    "Erkenne..."
                   ) : (
                     <>
-                      <Camera className="mr-2 h-5 w-5" />
-                      Gesicht scannen
+                      <Camera className="mr-2 h-4 w-4" />
+                      Scannen
                     </>
                   )}
                 </Button>
               </div>
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {employee && (
                 <Card className="bg-primary/10 border-primary/20">
-                  <CardContent className="pt-6">
-                    <div className="text-center">
-                      <p className="text-sm text-muted-foreground">Antrag von:</p>
-                      <p className="text-2xl font-bold">
+                  <CardContent className="py-3 sm:py-4">
+                    <div className="text-center space-y-1">
+                      <p className="text-xs text-muted-foreground">Antrag von:</p>
+                      <p className="text-lg sm:text-xl font-bold">
                         {employee.first_name} {employee.last_name}
                       </p>
-                      <p className="text-muted-foreground">
-                        {employee.employee_number} • {employee.department || "Keine Abteilung"}
+                      <p className="text-xs sm:text-sm text-muted-foreground">
+                        {employee.employee_number}
                       </p>
                     </div>
                   </CardContent>
                 </Card>
               )}
 
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div className="space-y-2">
-                  <Label htmlFor="request_type">Art des Antrags *</Label>
+                  <Label htmlFor="request_type" className="text-sm">Art des Antrags *</Label>
                   <Select
                     value={formData.request_type}
                     onValueChange={(value) => setFormData({ ...formData, request_type: value })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="h-11">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -283,58 +287,61 @@ const VacationRequest = ({ onComplete, onCancel }: VacationRequestProps) => {
                   </Select>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-2">
-                    <Label htmlFor="start_date">Von (Datum) *</Label>
+                    <Label htmlFor="start_date" className="text-sm">Von *</Label>
                     <Input
                       id="start_date"
                       type="date"
                       value={formData.start_date}
                       onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                      className="h-11"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="end_date">Bis (Datum) *</Label>
+                    <Label htmlFor="end_date" className="text-sm">Bis *</Label>
                     <Input
                       id="end_date"
                       type="date"
                       value={formData.end_date}
                       onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                      className="h-11"
                     />
                   </div>
                 </div>
 
                 {formData.start_date && formData.end_date && (
                   <Card className="bg-accent/10 border-accent/20">
-                    <CardContent className="pt-6">
-                      <p className="text-center text-lg">
-                        <span className="font-semibold text-2xl text-accent">
+                    <CardContent className="py-3">
+                      <p className="text-center">
+                        <span className="font-semibold text-xl text-accent">
                           {calculateDays()}
                         </span>
-                        {" "}Tage beantragt
+                        {" "}Tage
                       </p>
                     </CardContent>
                   </Card>
                 )}
 
                 <div className="space-y-2">
-                  <Label htmlFor="notes">Notizen (optional)</Label>
+                  <Label htmlFor="notes" className="text-sm">Notizen</Label>
                   <Textarea
                     id="notes"
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    placeholder="Zusätzliche Informationen..."
+                    placeholder="Optional..."
                     rows={3}
+                    className="resize-none"
                   />
                 </div>
               </div>
 
-              <div className="flex gap-4">
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
                 <Button
                   variant="outline"
                   size="lg"
                   onClick={onCancel}
-                  className="flex-1"
+                  className="flex-1 h-12"
                 >
                   Abbrechen
                 </Button>
@@ -342,9 +349,9 @@ const VacationRequest = ({ onComplete, onCancel }: VacationRequestProps) => {
                   size="lg"
                   onClick={handleSubmit}
                   disabled={isProcessing}
-                  className="flex-1 bg-gradient-to-r from-success to-success/80"
+                  className="flex-1 h-12 bg-gradient-to-r from-success to-success/80"
                 >
-                  {isProcessing ? "Wird eingereicht..." : "Antrag einreichen"}
+                  {isProcessing ? "Wird eingereicht..." : "Einreichen"}
                 </Button>
               </div>
             </div>
