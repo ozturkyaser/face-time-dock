@@ -2,9 +2,11 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { format, differenceInMinutes } from "date-fns";
 import { de } from "date-fns/locale";
+import { Download } from "lucide-react";
 
 const TimeEntriesView = () => {
   const [entries, setEntries] = useState<any[]>([]);
@@ -21,7 +23,12 @@ const TimeEntriesView = () => {
         employees (
           employee_number,
           first_name,
-          last_name
+          last_name,
+          department,
+          position,
+          locations (
+            name
+          )
         )
       `)
       .order("check_in", { ascending: false })
@@ -42,13 +49,76 @@ const TimeEntriesView = () => {
     return `${hours}h ${mins}m`;
   };
 
+  const exportToCSV = () => {
+    const csvHeaders = [
+      "Mitarbeiternummer",
+      "Vorname",
+      "Nachname",
+      "Abteilung",
+      "Position",
+      "Standort",
+      "Check-in Datum",
+      "Check-in Uhrzeit",
+      "Check-out Datum",
+      "Check-out Uhrzeit",
+      "Dauer (Minuten)",
+      "Pause (Minuten)",
+      "Notizen",
+      "Status"
+    ].join(",");
+
+    const csvRows = entries.map(entry => {
+      const checkIn = new Date(entry.check_in);
+      const checkOut = entry.check_out ? new Date(entry.check_out) : null;
+      const durationMinutes = checkOut ? differenceInMinutes(checkOut, checkIn) : 0;
+      const status = checkOut ? "Abgeschlossen" : "Aktiv";
+
+      return [
+        entry.employees?.employee_number || "",
+        entry.employees?.first_name || "",
+        entry.employees?.last_name || "",
+        entry.employees?.department || "",
+        entry.employees?.position || "",
+        entry.employees?.locations?.name || "",
+        format(checkIn, "dd.MM.yyyy", { locale: de }),
+        format(checkIn, "HH:mm", { locale: de }),
+        checkOut ? format(checkOut, "dd.MM.yyyy", { locale: de }) : "",
+        checkOut ? format(checkOut, "HH:mm", { locale: de }) : "",
+        durationMinutes.toString(),
+        (entry.break_duration_minutes || 0).toString(),
+        (entry.notes || "").replace(/,/g, ";"),
+        status
+      ].join(",");
+    });
+
+    const csv = [csvHeaders, ...csvRows].join("\n");
+    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute("href", url);
+    link.setAttribute("download", `zeiterfassungen_${format(new Date(), "yyyy-MM-dd_HH-mm")}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <Card className="shadow-lg">
       <CardHeader>
-        <CardTitle>Zeiterfassungen</CardTitle>
-        <CardDescription>
-          Übersicht aller Check-in und Check-out Aktivitäten
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Zeiterfassungen</CardTitle>
+            <CardDescription>
+              Übersicht aller Check-in und Check-out Aktivitäten
+            </CardDescription>
+          </div>
+          <Button onClick={exportToCSV} variant="outline" className="gap-2">
+            <Download className="h-4 w-4" />
+            CSV Exportieren
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <Table>
