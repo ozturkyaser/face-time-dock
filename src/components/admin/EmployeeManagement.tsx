@@ -34,7 +34,8 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
     location_id: "",
     hourly_rate: "",
     salary: "",
-    pin: ""
+    pin: "",
+    default_break_minutes: "45"
   });
 
   useEffect(() => {
@@ -81,7 +82,8 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
       position: formData.position || null,
       location_id: formData.location_id || null,
       hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : null,
-      salary: formData.salary ? parseFloat(formData.salary) : null
+      salary: formData.salary ? parseFloat(formData.salary) : null,
+      default_break_minutes: formData.default_break_minutes ? parseInt(formData.default_break_minutes) : 45
     };
 
     // Hash PIN if provided
@@ -130,7 +132,8 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
       location_id: "",
       hourly_rate: "",
       salary: "",
-      pin: ""
+      pin: "",
+      default_break_minutes: "45"
     });
     loadEmployees();
     onUpdate?.();
@@ -149,7 +152,8 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
       location_id: employee.location_id || "",
       hourly_rate: employee.hourly_rate?.toString() || "",
       salary: employee.salary?.toString() || "",
-      pin: ""
+      pin: "",
+      default_break_minutes: employee.default_break_minutes?.toString() || "45"
     });
     setIsDialogOpen(true);
   };
@@ -335,6 +339,18 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
                       onChange={(e) => setFormData({ ...formData, salary: e.target.value })}
                     />
                   </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="default_break_minutes">Standard-Pausenzeit (Minuten)</Label>
+                  <Input
+                    id="default_break_minutes"
+                    type="number"
+                    value={formData.default_break_minutes}
+                    onChange={(e) => setFormData({ ...formData, default_break_minutes: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Diese Pausenzeit wird automatisch bei Zeiterfassungen abgezogen (Standard: 45 Minuten)
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="pin">Mitarbeiter-PIN {editingEmployee ? "(Leer lassen, um nicht zu ändern)" : "*"}</Label>

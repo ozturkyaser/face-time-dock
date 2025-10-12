@@ -17,6 +17,7 @@ export type Database = {
       employees: {
         Row: {
           created_at: string | null
+          default_break_minutes: number | null
           department: string | null
           email: string
           employee_number: string
@@ -36,6 +37,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          default_break_minutes?: number | null
           department?: string | null
           email: string
           employee_number: string
@@ -55,6 +57,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          default_break_minutes?: number | null
           department?: string | null
           email?: string
           employee_number?: string
