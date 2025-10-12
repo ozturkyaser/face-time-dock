@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Calendar, Camera, CheckCircle } from "lucide-react";
+import { Calendar, Camera, CheckCircle, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { differenceInDays } from "date-fns";
+import { extractFaceDescriptor, findBestMatch, detectFace } from "@/utils/faceRecognition";
 
 interface VacationRequestProps {
   onComplete: () => void;
@@ -71,28 +72,70 @@ const VacationRequest = ({ onComplete, onCancel }: VacationRequestProps) => {
   };
 
   const recognizeFace = async () => {
+    if (!videoRef.current || !canvasRef.current) return;
+    
     setIsProcessing(true);
     
-    // Für Demo: Zufälligen Mitarbeiter mit Gesichtsprofil auswählen
-    const employeesWithFace = employees.filter(e => e.face_profiles);
+    const canvas = canvasRef.current;
+    const video = videoRef.current;
     
-    if (employeesWithFace.length === 0) {
-      toast.error("Keine registrierten Mitarbeiter gefunden");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      setIsProcessing(false);
+      return;
+    }
+    
+    ctx.drawImage(video, 0, 0);
+    
+    // Check if a face is detected
+    const faceDetected = detectFace(canvas);
+    if (!faceDetected) {
+      toast.error("Kein Gesicht erkannt. Bitte positionieren Sie Ihr Gesicht deutlich vor der Kamera.", {
+        icon: <AlertCircle className="h-5 w-5 text-destructive" />
+      });
       setIsProcessing(false);
       return;
     }
 
-    // Simulation der Gesichtserkennung
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    const recognizedEmployee = employeesWithFace[Math.floor(Math.random() * employeesWithFace.length)];
-    
-    setEmployee(recognizedEmployee);
-    stopCamera();
-    setStep("form");
-    setIsProcessing(false);
-    
-    toast.success(`Willkommen ${recognizedEmployee.first_name} ${recognizedEmployee.last_name}!`);
+    try {
+      // Extract face descriptor
+      const currentDescriptor = await extractFaceDescriptor(canvas);
+      
+      // Get employees with face profiles
+      const employeesWithFaces = employees.filter(e => e.face_profiles);
+      
+      if (employeesWithFaces.length === 0) {
+        toast.error("Keine registrierten Gesichter gefunden");
+        setIsProcessing(false);
+        return;
+      }
+
+      // Find best match
+      const match = findBestMatch(currentDescriptor, employeesWithFaces, 0.65);
+      
+      if (!match) {
+        toast.error("Gesicht nicht erkannt. Bitte versuchen Sie es erneut.", {
+          icon: <AlertCircle className="h-5 w-5 text-destructive" />
+        });
+        setIsProcessing(false);
+        return;
+      }
+
+      const { employee } = match;
+      
+      setEmployee(employee);
+      stopCamera();
+      setStep("form");
+      setIsProcessing(false);
+      
+      toast.success(`Willkommen ${employee.first_name} ${employee.last_name}!`);
+    } catch (error) {
+      console.error("Error during face recognition:", error);
+      toast.error("Fehler bei der Gesichtserkennung");
+      setIsProcessing(false);
+    }
   };
 
   const calculateDays = () => {

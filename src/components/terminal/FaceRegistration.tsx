@@ -1,11 +1,12 @@
 import { useState, useRef } from "react";
-import { Camera, UserPlus, CheckCircle } from "lucide-react";
+import { Camera, UserPlus, CheckCircle, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { extractFaceDescriptor, detectFace } from "@/utils/faceRecognition";
 
 interface FaceRegistrationProps {
   onComplete: () => void;
@@ -92,44 +93,65 @@ const FaceRegistration = ({ onComplete, onCancel }: FaceRegistrationProps) => {
 
     ctx.drawImage(video, 0, 0);
     
-    // Convert to base64
-    const imageData = canvas.toDataURL("image/jpeg");
-    
-    // Create a simple face descriptor (in production, use real face recognition model)
-    const faceDescriptor = {
-      timestamp: new Date().toISOString(),
-      imageHash: btoa(imageData.substring(0, 100)),
-      employee_id: employee.id
-    };
-
-    // Save to database
-    const { error } = await supabase
-      .from("face_profiles")
-      .insert({
-        employee_id: employee.id,
-        face_descriptor: faceDescriptor,
-        image_url: imageData
+    // Check if a face is detected
+    const faceDetected = detectFace(canvas);
+    if (!faceDetected) {
+      toast.error("Kein Gesicht erkannt. Bitte positionieren Sie Ihr Gesicht in der Kamera.", {
+        icon: <AlertCircle className="h-5 w-5 text-destructive" />
       });
-
-    setIsProcessing(false);
-    stopCamera();
-
-    if (error) {
-      console.error("Fehler beim Speichern:", error);
-      toast.error("Fehler beim Speichern des Gesichtsprofils");
+      setIsProcessing(false);
       return;
     }
 
-    toast.success(
-      `Gesichtsprofil für ${employee.first_name} ${employee.last_name} erfolgreich gespeichert!`,
-      {
-        icon: <CheckCircle className="h-5 w-5 text-success" />
-      }
-    );
+    try {
+      // Extract face descriptor using ML model
+      const descriptor = await extractFaceDescriptor(canvas);
+      
+      // Convert to base64 for image storage
+      const imageData = canvas.toDataURL("image/jpeg", 0.8);
+      
+      // Create face descriptor object
+      const faceDescriptor = {
+        timestamp: new Date().toISOString(),
+        employee_id: employee.id,
+        descriptor: descriptor, // Store the actual ML-generated descriptor
+        model: 'transformers-v1'
+      };
 
-    setTimeout(() => {
-      onComplete();
-    }, 2000);
+      // Save to database
+      const { error } = await supabase
+        .from("face_profiles")
+        .insert({
+          employee_id: employee.id,
+          face_descriptor: faceDescriptor,
+          image_url: imageData
+        });
+
+      setIsProcessing(false);
+      stopCamera();
+
+      if (error) {
+        console.error("Fehler beim Speichern:", error);
+        toast.error("Fehler beim Speichern des Gesichtsprofils");
+        return;
+      }
+
+      toast.success(
+        `Gesichtsprofil für ${employee.first_name} ${employee.last_name} erfolgreich gespeichert!`,
+        {
+          icon: <CheckCircle className="h-5 w-5 text-success" />,
+          description: "Ihr Gesicht wurde erfolgreich im System registriert"
+        }
+      );
+
+      setTimeout(() => {
+        onComplete();
+      }, 2000);
+    } catch (error) {
+      console.error("Fehler bei der Gesichtserkennung:", error);
+      toast.error("Fehler bei der Gesichtsanalyse. Bitte versuchen Sie es erneut.");
+      setIsProcessing(false);
+    }
   };
 
   const handleCancel = () => {

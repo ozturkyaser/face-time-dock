@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import { Camera, CheckCircle, XCircle, Clock, UserPlus, CalendarDays } from "lucide-react";
+import { Camera, CheckCircle, XCircle, Clock, UserPlus, CalendarDays, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import FaceRegistration from "@/components/terminal/FaceRegistration";
 import VacationRequest from "@/components/terminal/VacationRequest";
+import { extractFaceDescriptor, findBestMatch, detectFace } from "@/utils/faceRecognition";
 
 const Terminal = () => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -65,20 +66,57 @@ const Terminal = () => {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    if (!ctx) {
+      setIsProcessing(false);
+      return;
+    }
     
     ctx.drawImage(video, 0, 0);
     
-    // For demo purposes, we'll use a simple matching mechanism
-    // In production, you would use face recognition models
-    const imageData = canvas.toDataURL("image/jpeg");
-    
-    // Simple demo: randomly select an employee
-    if (employees.length > 0) {
-      const randomEmployee = employees[Math.floor(Math.random() * employees.length)];
-      await handleCheckInOut(randomEmployee);
-    } else {
-      toast.error("Keine Mitarbeiter registriert");
+    // Check if a face is detected
+    const faceDetected = detectFace(canvas);
+    if (!faceDetected) {
+      toast.error("Kein Gesicht erkannt. Bitte positionieren Sie Ihr Gesicht deutlich vor der Kamera.", {
+        icon: <AlertCircle className="h-5 w-5 text-destructive" />,
+        description: "Stellen Sie sicher, dass Ihr Gesicht gut beleuchtet und sichtbar ist"
+      });
+      setIsProcessing(false);
+      return;
+    }
+
+    try {
+      // Extract face descriptor from current frame
+      console.log('Extracting face descriptor...');
+      const currentDescriptor = await extractFaceDescriptor(canvas);
+      
+      // Get all employees with face profiles
+      const employeesWithFaces = employees.filter(e => e.face_profiles);
+      
+      if (employeesWithFaces.length === 0) {
+        toast.error("Keine registrierten Gesichter gefunden. Bitte registrieren Sie sich zuerst.");
+        setIsProcessing(false);
+        return;
+      }
+
+      // Find best match
+      const match = findBestMatch(currentDescriptor, employeesWithFaces, 0.65); // 65% similarity threshold
+      
+      if (!match) {
+        toast.error("Gesicht nicht erkannt. Bitte versuchen Sie es erneut oder registrieren Sie sich.", {
+          icon: <XCircle className="h-5 w-5 text-destructive" />,
+          description: "Stellen Sie sicher, dass Sie bereits registriert sind"
+        });
+        setIsProcessing(false);
+        return;
+      }
+
+      const { employee, similarity } = match;
+      console.log(`Recognized: ${employee.first_name} ${employee.last_name} (${(similarity * 100).toFixed(1)}% match)`);
+      
+      await handleCheckInOut(employee);
+    } catch (error) {
+      console.error("Error during face recognition:", error);
+      toast.error("Fehler bei der Gesichtserkennung. Bitte versuchen Sie es erneut.");
     }
     
     setIsProcessing(false);
