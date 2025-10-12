@@ -10,8 +10,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { format, differenceInDays } from "date-fns";
 import { de } from "date-fns/locale";
-import { Check, X, Calendar } from "lucide-react";
+import { Check, X, Calendar, FileText } from "lucide-react";
 import { toast } from "sonner";
+import AdminVacationCreate from "./AdminVacationCreate";
+import SignatureCanvasComponent from "@/components/shared/SignatureCanvas";
+import { generateVacationPDF } from "@/utils/pdfGenerator";
 
 interface VacationManagementProps {
   onUpdate?: () => void;
@@ -20,12 +23,14 @@ interface VacationManagementProps {
 const VacationManagement = ({ onUpdate }: VacationManagementProps) => {
   const [requests, setRequests] = useState<any[]>([]);
   const [isAlternativeDialogOpen, setIsAlternativeDialogOpen] = useState(false);
+  const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [alternativeData, setAlternativeData] = useState({
     start_date: "",
     end_date: "",
     notes: ""
   });
+  const [adminSignature, setAdminSignature] = useState("");
 
   useEffect(() => {
     loadRequests();
@@ -52,22 +57,92 @@ const VacationManagement = ({ onUpdate }: VacationManagementProps) => {
   };
 
   const handleApprove = async (id: string) => {
-    const { error } = await supabase
-      .from("vacation_requests")
-      .update({
-        status: "approved",
-        approved_at: new Date().toISOString()
-      })
-      .eq("id", id);
-    
-    if (error) {
-      toast.error("Fehler beim Genehmigen");
+    const request = requests.find(r => r.id === id);
+    if (request) {
+      setSelectedRequest(request);
+      setAdminSignature("");
+      setIsApproveDialogOpen(true);
+    }
+  };
+
+  const handleConfirmApprove = async () => {
+    if (!selectedRequest || !adminSignature) {
+      toast.error("Bitte Admin-Unterschrift leisten");
       return;
     }
-    
-    toast.success("Urlaubsantrag genehmigt");
-    loadRequests();
-    onUpdate?.();
+
+    try {
+      // Get employee details
+      const { data: employeeData } = await supabase
+        .from("employees")
+        .select("employee_number, first_name, last_name")
+        .eq("id", selectedRequest.employee_id)
+        .single();
+
+      if (!employeeData) {
+        toast.error("Mitarbeiter nicht gefunden");
+        return;
+      }
+
+      // Update vacation request
+      const approvedAt = new Date().toISOString();
+      const { error: updateError } = await supabase
+        .from("vacation_requests")
+        .update({
+          status: "approved",
+          approved_at: approvedAt,
+          admin_signature: adminSignature
+        })
+        .eq("id", selectedRequest.id);
+      
+      if (updateError) {
+        toast.error("Fehler beim Genehmigen");
+        return;
+      }
+
+      // Generate PDF
+      const pdfBlob = await generateVacationPDF({
+        employeeName: `${employeeData.first_name} ${employeeData.last_name}`,
+        employeeNumber: employeeData.employee_number,
+        requestType: selectedRequest.request_type,
+        startDate: selectedRequest.start_date,
+        endDate: selectedRequest.end_date,
+        totalDays: selectedRequest.total_days,
+        notes: selectedRequest.notes,
+        employeeSignature: selectedRequest.employee_signature,
+        adminSignature: adminSignature,
+        approvedAt: approvedAt
+      });
+
+      // Upload PDF
+      const fileName = `vacation_${selectedRequest.id}_${Date.now()}.pdf`;
+      const { error: uploadError } = await supabase.storage
+        .from("vacation-pdfs")
+        .upload(fileName, pdfBlob, {
+          contentType: "application/pdf"
+        });
+
+      if (!uploadError) {
+        const { data: { publicUrl } } = supabase.storage
+          .from("vacation-pdfs")
+          .getPublicUrl(fileName);
+
+        await supabase
+          .from("vacation_requests")
+          .update({ pdf_url: publicUrl })
+          .eq("id", selectedRequest.id);
+      }
+
+      toast.success("Urlaubsantrag genehmigt und PDF erstellt");
+      setIsApproveDialogOpen(false);
+      setSelectedRequest(null);
+      setAdminSignature("");
+      loadRequests();
+      onUpdate?.();
+    } catch (error) {
+      console.error("Error approving:", error);
+      toast.error("Fehler beim Genehmigen");
+    }
   };
 
   const handleReject = async (id: string) => {
@@ -166,7 +241,12 @@ const VacationManagement = ({ onUpdate }: VacationManagementProps) => {
   };
 
   return (
-    <Card className="shadow-lg">
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <AdminVacationCreate onSuccess={() => { loadRequests(); onUpdate?.(); }} />
+      </div>
+      
+      <Card className="shadow-lg">
       <CardHeader>
         <CardTitle>Urlaubsverwaltung</CardTitle>
         <CardDescription>
@@ -183,6 +263,7 @@ const VacationManagement = ({ onUpdate }: VacationManagementProps) => {
               <TableHead>Bis</TableHead>
               <TableHead>Tage</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>PDF</TableHead>
               <TableHead className="text-right">Aktionen</TableHead>
             </TableRow>
           </TableHeader>
@@ -210,6 +291,21 @@ const VacationManagement = ({ onUpdate }: VacationManagementProps) => {
                 </TableCell>
                 <TableCell>{request.total_days}</TableCell>
                 <TableCell>{getStatusBadge(request.status)}</TableCell>
+                <TableCell>
+                  {request.pdf_url ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1"
+                      onClick={() => window.open(request.pdf_url, '_blank')}
+                    >
+                      <FileText className="h-3 w-3" />
+                      PDF
+                    </Button>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">-</span>
+                  )}
+                </TableCell>
                 <TableCell className="text-right">
                   {request.status === "pending" && (
                     <div className="flex justify-end gap-2">
@@ -251,6 +347,7 @@ const VacationManagement = ({ onUpdate }: VacationManagementProps) => {
           </TableBody>
         </Table>
       </CardContent>
+    </Card>
 
       <Dialog open={isAlternativeDialogOpen} onOpenChange={setIsAlternativeDialogOpen}>
         <DialogContent>
@@ -323,7 +420,51 @@ const VacationManagement = ({ onUpdate }: VacationManagementProps) => {
           )}
         </DialogContent>
       </Dialog>
-    </Card>
+
+      <Dialog open={isApproveDialogOpen} onOpenChange={setIsApproveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Urlaubsantrag genehmigen</DialogTitle>
+            <DialogDescription>
+              Bitte leisten Sie Ihre Unterschrift zur Genehmigung
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedRequest && (
+            <div className="space-y-4">
+              <div className="p-3 bg-muted rounded-lg">
+                <div className="text-sm font-medium">Antrag:</div>
+                <div className="text-sm text-muted-foreground">
+                  {format(new Date(selectedRequest.start_date), "dd.MM.yyyy", { locale: de })} - {format(new Date(selectedRequest.end_date), "dd.MM.yyyy", { locale: de })}
+                  <span className="ml-2">({selectedRequest.total_days} Tage)</span>
+                </div>
+              </div>
+
+              <SignatureCanvasComponent
+                onSave={setAdminSignature}
+                label="Administrator-Unterschrift *"
+              />
+
+              {adminSignature && (
+                <div className="p-3 bg-muted rounded-lg">
+                  <Label className="text-xs">Gespeicherte Unterschrift:</Label>
+                  <img src={adminSignature} alt="Admin Signature" className="h-16 border mt-2" />
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setIsApproveDialogOpen(false)}>
+                  Abbrechen
+                </Button>
+                <Button onClick={handleConfirmApprove} disabled={!adminSignature}>
+                  Genehmigen & PDF erstellen
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 };
 

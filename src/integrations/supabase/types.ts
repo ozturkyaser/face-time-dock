@@ -282,6 +282,7 @@ export type Database = {
       }
       vacation_requests: {
         Row: {
+          admin_signature: string | null
           alternative_end_date: string | null
           alternative_notes: string | null
           alternative_start_date: string | null
@@ -290,9 +291,11 @@ export type Database = {
           approved_by: string | null
           created_at: string | null
           employee_id: string
+          employee_signature: string | null
           end_date: string
           id: string
           notes: string | null
+          pdf_url: string | null
           request_type: string
           start_date: string
           status: string
@@ -300,6 +303,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          admin_signature?: string | null
           alternative_end_date?: string | null
           alternative_notes?: string | null
           alternative_start_date?: string | null
@@ -308,9 +312,11 @@ export type Database = {
           approved_by?: string | null
           created_at?: string | null
           employee_id: string
+          employee_signature?: string | null
           end_date: string
           id?: string
           notes?: string | null
+          pdf_url?: string | null
           request_type: string
           start_date: string
           status?: string
@@ -318,6 +324,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          admin_signature?: string | null
           alternative_end_date?: string | null
           alternative_notes?: string | null
           alternative_start_date?: string | null
@@ -326,9 +333,11 @@ export type Database = {
           approved_by?: string | null
           created_at?: string | null
           employee_id?: string
+          employee_signature?: string | null
           end_date?: string
           id?: string
           notes?: string | null
+          pdf_url?: string | null
           request_type?: string
           start_date?: string
           status?: string

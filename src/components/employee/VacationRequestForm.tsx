@@ -5,10 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Calendar, Plus } from "lucide-react";
 import { differenceInDays } from "date-fns";
+import SignatureCanvasComponent from "@/components/shared/SignatureCanvas";
 
 interface VacationRequestFormProps {
   employeeId: string;
@@ -23,6 +25,7 @@ const VacationRequestForm = ({ employeeId, onSuccess }: VacationRequestFormProps
     request_type: "vacation",
     notes: ""
   });
+  const [employeeSignature, setEmployeeSignature] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const calculateDays = () => {
@@ -36,6 +39,11 @@ const VacationRequestForm = ({ employeeId, onSuccess }: VacationRequestFormProps
     
     if (!formData.start_date || !formData.end_date) {
       toast.error("Bitte Start- und Enddatum auswählen");
+      return;
+    }
+
+    if (!employeeSignature) {
+      toast.error("Bitte Unterschrift leisten");
       return;
     }
 
@@ -55,7 +63,8 @@ const VacationRequestForm = ({ employeeId, onSuccess }: VacationRequestFormProps
         end_date: formData.end_date,
         total_days: totalDays,
         request_type: formData.request_type,
-        notes: formData.notes || null
+        notes: formData.notes || null,
+        employee_signature: employeeSignature
       });
 
     if (error) {
@@ -67,6 +76,7 @@ const VacationRequestForm = ({ employeeId, onSuccess }: VacationRequestFormProps
 
     toast.success("Urlaubsantrag erfolgreich eingereicht");
     setFormData({ start_date: "", end_date: "", request_type: "vacation", notes: "" });
+    setEmployeeSignature("");
     setIsOpen(false);
     setIsLoading(false);
     onSuccess();
@@ -142,17 +152,29 @@ const VacationRequestForm = ({ employeeId, onSuccess }: VacationRequestFormProps
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notizen (optional)</Label>
-            <Textarea
-              id="notes"
-              placeholder="Zusätzliche Informationen..."
-              value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-            />
-          </div>
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notizen (optional)</Label>
+              <Textarea
+                id="notes"
+                placeholder="Zusätzliche Informationen..."
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              />
+            </div>
 
-          <div className="flex gap-2 justify-end">
+            <SignatureCanvasComponent
+              onSave={setEmployeeSignature}
+              label="Mitarbeiter-Unterschrift *"
+            />
+
+            {employeeSignature && (
+              <div className="p-3 bg-muted rounded-lg">
+                <Label className="text-xs">Gespeicherte Unterschrift:</Label>
+                <img src={employeeSignature} alt="Employee Signature" className="h-16 border mt-2" />
+              </div>
+            )}
+
+            <div className="flex gap-2 justify-end">
             <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={isLoading}>
               Abbrechen
             </Button>
