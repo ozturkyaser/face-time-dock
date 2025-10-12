@@ -139,20 +139,36 @@ export const findBestMatch = (
   let bestSimilarity = 0;
   
   console.log('=== Starting face matching ===');
-  console.log('Number of employees with faces:', employees.filter(e => e.face_profiles?.face_descriptor?.descriptor).length);
+  console.log('Number of employees to check:', employees.length);
   console.log('Threshold:', threshold);
   console.log('Current descriptor length:', currentDescriptor.length);
 
   const similarities: Array<{ name: string; similarity: number }> = [];
 
   for (const employee of employees) {
-    if (!employee.face_profiles?.face_descriptor?.descriptor) {
-      console.log(`Skipping ${employee.first_name} ${employee.last_name} - no face profile`);
+    // Support both data structures:
+    // 1. employee.face_profiles.face_descriptor.descriptor (from Terminal)
+    // 2. employee.face_descriptor.descriptor (from EmployeeLogin)
+    let storedDescriptor: number[] | null = null;
+    let employeeName = '';
+    
+    if (employee.face_profiles?.face_descriptor?.descriptor) {
+      // Structure from Terminal: employees with nested face_profiles
+      storedDescriptor = employee.face_profiles.face_descriptor.descriptor;
+      employeeName = `${employee.first_name} ${employee.last_name}`;
+    } else if (employee.face_descriptor?.descriptor) {
+      // Structure from EmployeeLogin: face_profiles with nested employees
+      storedDescriptor = employee.face_descriptor.descriptor;
+      employeeName = employee.employees 
+        ? `${employee.employees.first_name} ${employee.employees.last_name}`
+        : 'Unknown';
+    }
+    
+    if (!storedDescriptor) {
+      console.log(`Skipping ${employeeName || 'unknown employee'} - no face descriptor`);
       continue;
     }
-
-    const storedDescriptor = employee.face_profiles.face_descriptor.descriptor;
-    console.log(`\nComparing with ${employee.first_name} ${employee.last_name}:`);
+    console.log(`\nComparing with ${employeeName}:`);
     console.log('Stored descriptor length:', storedDescriptor.length);
     
     if (currentDescriptor.length !== storedDescriptor.length) {
@@ -161,7 +177,7 @@ export const findBestMatch = (
     }
     
     const similarity = calculateSimilarity(currentDescriptor, storedDescriptor);
-    similarities.push({ name: `${employee.first_name} ${employee.last_name}`, similarity });
+    similarities.push({ name: employeeName, similarity });
 
     console.log(`→ Similarity: ${(similarity * 100).toFixed(2)}%`);
 
@@ -178,7 +194,10 @@ export const findBestMatch = (
   console.log(`Required threshold: ${(threshold * 100).toFixed(0)}%`);
 
   if (bestMatch && bestSimilarity >= threshold) {
-    console.log(`\n✓ Match found: ${bestMatch.first_name} ${bestMatch.last_name}`);
+    const matchName = bestMatch.employees 
+      ? `${bestMatch.employees.first_name} ${bestMatch.employees.last_name}`
+      : `${bestMatch.first_name} ${bestMatch.last_name}`;
+    console.log(`\n✓ Match found: ${matchName}`);
     console.log(`✓ Similarity: ${(bestSimilarity * 100).toFixed(2)}%`);
     return { employee: bestMatch, similarity: bestSimilarity };
   }
