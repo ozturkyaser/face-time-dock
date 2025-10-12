@@ -12,10 +12,30 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 const TimeEntriesView = () => {
   const [entries, setEntries] = useState<any[]>([]);
   const [timeFilter, setTimeFilter] = useState<string>("month");
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [selectedEmployee, setSelectedEmployee] = useState<string>("all");
+
+  useEffect(() => {
+    loadEmployees();
+  }, []);
 
   useEffect(() => {
     loadEntries();
-  }, [timeFilter]);
+  }, [timeFilter, selectedEmployee]);
+
+  const loadEmployees = async () => {
+    const { data, error } = await supabase
+      .from("employees")
+      .select("id, first_name, last_name, employee_number")
+      .eq("is_active", true)
+      .order("last_name");
+    
+    if (error) {
+      console.error("Error loading employees:", error);
+      return;
+    }
+    setEmployees(data || []);
+  };
 
   const getDateRange = () => {
     const now = new Date();
@@ -51,7 +71,7 @@ const TimeEntriesView = () => {
   const loadEntries = async () => {
     const { start, end } = getDateRange();
     
-    const { data, error } = await supabase
+    let query = supabase
       .from("time_entries")
       .select(`
         *,
@@ -69,6 +89,13 @@ const TimeEntriesView = () => {
       .gte("check_in", start.toISOString())
       .lte("check_in", end.toISOString())
       .order("check_in", { ascending: false });
+    
+    // Filter by employee if selected
+    if (selectedEmployee !== "all") {
+      query = query.eq("employee_id", selectedEmployee);
+    }
+    
+    const { data, error } = await query;
     
     if (error) {
       console.error("Error loading entries:", error);
@@ -181,6 +208,19 @@ const TimeEntriesView = () => {
                 </SelectContent>
               </Select>
             </div>
+            <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Alle Mitarbeiter" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Alle Mitarbeiter</SelectItem>
+                {employees.map((employee) => (
+                  <SelectItem key={employee.id} value={employee.id}>
+                    {employee.first_name} {employee.last_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button onClick={exportToCSV} variant="outline" className="gap-2">
               <Download className="h-4 w-4" />
               CSV Exportieren
