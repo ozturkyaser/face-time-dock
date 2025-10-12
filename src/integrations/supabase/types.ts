@@ -23,6 +23,7 @@ export type Database = {
           employee_number: string
           employment_end_date: string | null
           employment_start_date: string
+          expected_daily_hours: number | null
           first_name: string
           hourly_rate: number | null
           id: string
@@ -43,6 +44,7 @@ export type Database = {
           employee_number: string
           employment_end_date?: string | null
           employment_start_date?: string
+          expected_daily_hours?: number | null
           first_name: string
           hourly_rate?: number | null
           id?: string
@@ -63,6 +65,7 @@ export type Database = {
           employee_number?: string
           employment_end_date?: string | null
           employment_start_date?: string
+          expected_daily_hours?: number | null
           first_name?: string
           hourly_rate?: number | null
           id?: string

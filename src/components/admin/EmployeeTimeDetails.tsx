@@ -16,6 +16,7 @@ interface Employee {
   last_name: string;
   department: string;
   position: string;
+  expected_daily_hours: number;
 }
 
 const EmployeeTimeDetails = () => {
@@ -38,7 +39,7 @@ const EmployeeTimeDetails = () => {
   const loadEmployees = async () => {
     const { data, error } = await supabase
       .from("employees")
-      .select("id, employee_number, first_name, last_name, department, position")
+      .select("id, employee_number, first_name, last_name, department, position, expected_daily_hours")
       .eq("is_active", true)
       .order("last_name");
     
@@ -95,6 +96,33 @@ const EmployeeTimeDetails = () => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     return `${hours}h ${mins}m`;
+  };
+
+  const calculateExpectedHours = () => {
+    if (!selectedEmployee) return 0;
+    // Count working days in month (excluding weekends)
+    const monthStart = startOfMonth(new Date(selectedMonth + "-01"));
+    const monthEnd = endOfMonth(new Date(selectedMonth + "-01"));
+    
+    let workingDays = 0;
+    const current = new Date(monthStart);
+    
+    while (current <= monthEnd) {
+      const dayOfWeek = current.getDay();
+      // 0 = Sunday, 6 = Saturday
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        workingDays++;
+      }
+      current.setDate(current.getDate() + 1);
+    }
+    
+    const expectedDailyHours = selectedEmployee.expected_daily_hours || 8;
+    return workingDays * expectedDailyHours * 60; // Return in minutes
+  };
+
+  const getTimeDifference = () => {
+    const expected = calculateExpectedHours();
+    return totalMinutes - expected;
   };
 
   // Generate month options (last 12 months)
@@ -188,17 +216,39 @@ const EmployeeTimeDetails = () => {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="mb-6 p-4 bg-primary/5 rounded-lg border border-primary/20">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-muted-foreground">Gesamtarbeitszeit</div>
-              <div className="text-3xl font-bold text-primary">
+        <div className="mb-6 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
+              <div className="text-sm text-muted-foreground">Soll-Arbeitszeit</div>
+              <div className="text-2xl font-bold text-primary">
+                {formatTotalTime(calculateExpectedHours())}
+              </div>
+            </div>
+            <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
+              <div className="text-sm text-muted-foreground">Ist-Arbeitszeit</div>
+              <div className="text-2xl font-bold text-primary">
                 {formatTotalTime(totalMinutes)}
               </div>
             </div>
-            <div className="text-right">
-              <div className="text-sm text-muted-foreground">Einträge</div>
-              <div className="text-2xl font-semibold">{entries.length}</div>
+            <div className={`p-4 rounded-lg border ${
+              getTimeDifference() >= 0 
+                ? 'bg-success/5 border-success/20' 
+                : 'bg-destructive/5 border-destructive/20'
+            }`}>
+              <div className="text-sm text-muted-foreground">
+                {getTimeDifference() >= 0 ? 'Überstunden' : 'Fehlstunden'}
+              </div>
+              <div className={`text-2xl font-bold ${
+                getTimeDifference() >= 0 ? 'text-success' : 'text-destructive'
+              }`}>
+                {getTimeDifference() >= 0 ? '+' : ''}{formatTotalTime(Math.abs(getTimeDifference()))}
+              </div>
+            </div>
+          </div>
+          <div className="p-4 bg-muted/50 rounded-lg border">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Einträge im Monat</span>
+              <span className="font-semibold">{entries.length}</span>
             </div>
           </div>
         </div>

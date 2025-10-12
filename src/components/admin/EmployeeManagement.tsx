@@ -35,7 +35,8 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
     hourly_rate: "",
     salary: "",
     pin: "",
-    default_break_minutes: "45"
+    default_break_minutes: "45",
+    expected_daily_hours: "8.00"
   });
 
   useEffect(() => {
@@ -83,7 +84,8 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
       location_id: formData.location_id || null,
       hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : null,
       salary: formData.salary ? parseFloat(formData.salary) : null,
-      default_break_minutes: formData.default_break_minutes ? parseInt(formData.default_break_minutes) : 45
+      default_break_minutes: formData.default_break_minutes ? parseInt(formData.default_break_minutes) : 45,
+      expected_daily_hours: formData.expected_daily_hours ? parseFloat(formData.expected_daily_hours) : 8.00
     };
 
     // Hash PIN if provided
@@ -133,7 +135,8 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
       hourly_rate: "",
       salary: "",
       pin: "",
-      default_break_minutes: "45"
+      default_break_minutes: "45",
+      expected_daily_hours: "8.00"
     });
     loadEmployees();
     onUpdate?.();
@@ -153,7 +156,8 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
       hourly_rate: employee.hourly_rate?.toString() || "",
       salary: employee.salary?.toString() || "",
       pin: "",
-      default_break_minutes: employee.default_break_minutes?.toString() || "45"
+      default_break_minutes: employee.default_break_minutes?.toString() || "45",
+      expected_daily_hours: employee.expected_daily_hours?.toString() || "8.00"
     });
     setIsDialogOpen(true);
   };
@@ -340,17 +344,32 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
                     />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="default_break_minutes">Standard-Pausenzeit (Minuten)</Label>
-                  <Input
-                    id="default_break_minutes"
-                    type="number"
-                    value={formData.default_break_minutes}
-                    onChange={(e) => setFormData({ ...formData, default_break_minutes: e.target.value })}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Diese Pausenzeit wird automatisch bei Zeiterfassungen abgezogen (Standard: 45 Minuten)
-                  </p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="default_break_minutes">Standard-Pausenzeit (Minuten)</Label>
+                    <Input
+                      id="default_break_minutes"
+                      type="number"
+                      value={formData.default_break_minutes}
+                      onChange={(e) => setFormData({ ...formData, default_break_minutes: e.target.value })}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Automatisch abgezogen (Standard: 45 Min)
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="expected_daily_hours">Tägliche Soll-Arbeitszeit (Std.)</Label>
+                    <Input
+                      id="expected_daily_hours"
+                      type="number"
+                      step="0.25"
+                      value={formData.expected_daily_hours}
+                      onChange={(e) => setFormData({ ...formData, expected_daily_hours: e.target.value })}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Ohne Pause (Standard: 8 Std)
+                    </p>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="pin">Mitarbeiter-PIN {editingEmployee ? "(Leer lassen, um nicht zu ändern)" : "*"}</Label>
