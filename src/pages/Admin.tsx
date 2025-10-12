@@ -5,6 +5,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import EmployeeManagement from "@/components/admin/EmployeeManagement";
+import { LocationManagement } from "@/components/admin/LocationManagement";
+import { TerminalManagement } from "@/components/admin/TerminalManagement";
 import TimeEntriesView from "@/components/admin/TimeEntriesView";
 import VacationManagement from "@/components/admin/VacationManagement";
 import SalaryAdvances from "@/components/admin/SalaryAdvances";
@@ -114,10 +116,18 @@ const Admin = () => {
         </div>
 
         <Tabs defaultValue="employees" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 h-auto p-1">
+          <TabsList className="grid w-full grid-cols-6 h-auto p-1">
             <TabsTrigger value="employees" className="flex flex-col gap-1 py-3">
               <Users className="h-5 w-5" />
               <span className="text-xs sm:text-sm">Mitarbeiter</span>
+            </TabsTrigger>
+            <TabsTrigger value="locations" className="flex flex-col gap-1 py-3">
+              <LayoutDashboard className="h-5 w-5" />
+              <span className="text-xs sm:text-sm">Standorte</span>
+            </TabsTrigger>
+            <TabsTrigger value="terminals" className="flex flex-col gap-1 py-3">
+              <LayoutDashboard className="h-5 w-5" />
+              <span className="text-xs sm:text-sm">Terminals</span>
             </TabsTrigger>
             <TabsTrigger value="time" className="flex flex-col gap-1 py-3">
               <Clock className="h-5 w-5" />
@@ -135,6 +145,14 @@ const Admin = () => {
 
           <TabsContent value="employees" className="space-y-4">
             <EmployeeManagement onUpdate={loadStats} />
+          </TabsContent>
+
+          <TabsContent value="locations" className="space-y-4">
+            <LocationManagement onUpdate={loadStats} />
+          </TabsContent>
+
+          <TabsContent value="terminals" className="space-y-4">
+            <TerminalManagement />
           </TabsContent>
 
           <TabsContent value="time" className="space-y-4">

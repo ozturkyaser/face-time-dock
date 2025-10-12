@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import { Camera, CheckCircle, XCircle, Clock, UserPlus, CalendarDays, AlertCircle } from "lucide-react";
+import { Camera, CheckCircle, XCircle, Clock, UserPlus, CalendarDays, AlertCircle, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import FaceRegistration from "@/components/terminal/FaceRegistration";
 import VacationRequest from "@/components/terminal/VacationRequest";
+import { TerminalLogin } from "@/components/terminal/TerminalLogin";
 import { extractFaceDescriptor, findBestMatch, detectFace } from "@/utils/faceRecognition";
 
 const Terminal = () => {
@@ -14,25 +15,32 @@ const Terminal = () => {
   const [lastCheckIn, setLastCheckIn] = useState<any>(null);
   const [showRegistration, setShowRegistration] = useState(false);
   const [showVacationRequest, setShowVacationRequest] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [terminalLocation, setTerminalLocation] = useState<{id: string, name: string} | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
 
   useEffect(() => {
-    loadEmployees();
-    startCamera();
+    if (isLoggedIn && terminalLocation) {
+      loadEmployees();
+      startCamera();
+    }
     return () => {
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
     };
-  }, []);
+  }, [isLoggedIn, terminalLocation]);
 
   const loadEmployees = async () => {
+    if (!terminalLocation) return;
+    
     const { data, error } = await supabase
       .from("employees")
       .select("*, face_profiles(*)")
-      .eq("is_active", true);
+      .eq("is_active", true)
+      .eq("location_id", terminalLocation.id);
     
     if (error) {
       console.error("Error loading employees:", error);
@@ -169,6 +177,26 @@ const Terminal = () => {
     }
   };
 
+  const handleLoginSuccess = (terminalId: string, locationId: string, locationName: string) => {
+    setTerminalLocation({ id: locationId, name: locationName });
+    setIsLoggedIn(true);
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setTerminalLocation(null);
+    setEmployees([]);
+    setLastCheckIn(null);
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+    }
+    toast.success("Abgemeldet");
+  };
+
+  if (!isLoggedIn) {
+    return <TerminalLogin onLoginSuccess={handleLoginSuccess} />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 p-8">
       {showRegistration && (
@@ -192,9 +220,27 @@ const Terminal = () => {
       
       <div className="max-w-6xl mx-auto space-y-8">
         <div className="text-center space-y-2">
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            Zeiterfassung Terminal
-          </h1>
+          <div className="flex justify-between items-center">
+            <div className="flex-1" />
+            <div className="flex-1 text-center">
+              <h1 className="text-5xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                Zeiterfassung Terminal
+              </h1>
+              <p className="text-xl text-muted-foreground">
+                Standort: {terminalLocation?.name}
+              </p>
+            </div>
+            <div className="flex-1 flex justify-end">
+              <Button
+                variant="outline"
+                onClick={handleLogout}
+                className="shadow-md"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Abmelden
+              </Button>
+            </div>
+          </div>
           <p className="text-xl text-muted-foreground">
             Positionieren Sie Ihr Gesicht vor der Kamera
           </p>

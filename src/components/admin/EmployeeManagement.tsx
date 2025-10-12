@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -21,6 +22,7 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
   const [editingEmployee, setEditingEmployee] = useState<any>(null);
   const [showFaceRegistration, setShowFaceRegistration] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
+  const [locations, setLocations] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     employee_number: "",
     first_name: "",
@@ -29,18 +31,20 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
     phone: "",
     department: "",
     position: "",
+    location_id: "",
     hourly_rate: "",
     salary: ""
   });
 
   useEffect(() => {
     loadEmployees();
+    loadLocations();
   }, []);
 
   const loadEmployees = async () => {
     const { data, error } = await supabase
       .from("employees")
-      .select("*, face_profiles(*)")
+      .select("*, face_profiles(*), locations(name)")
       .order("created_at", { ascending: false });
     
     if (error) {
@@ -48,6 +52,19 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
       return;
     }
     setEmployees(data || []);
+  };
+
+  const loadLocations = async () => {
+    const { data, error } = await supabase
+      .from("locations")
+      .select("*")
+      .order("name");
+    
+    if (error) {
+      console.error("Error loading locations:", error);
+      return;
+    }
+    setLocations(data || []);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -92,6 +109,7 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
       phone: "",
       department: "",
       position: "",
+      location_id: "",
       hourly_rate: "",
       salary: ""
     });
@@ -109,6 +127,7 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
       phone: employee.phone || "",
       department: employee.department || "",
       position: employee.position || "",
+      location_id: employee.location_id || "",
       hourly_rate: employee.hourly_rate?.toString() || "",
       salary: employee.salary?.toString() || ""
     });
@@ -249,6 +268,21 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
                     onChange={(e) => setFormData({ ...formData, position: e.target.value })}
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="location">Standort</Label>
+                  <Select value={formData.location_id} onValueChange={(value) => setFormData({ ...formData, location_id: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Standort wählen" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {locations.map((location) => (
+                        <SelectItem key={location.id} value={location.id}>
+                          {location.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="hourly_rate">Stundenlohn (€)</Label>
@@ -291,6 +325,7 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
               <TableHead>Personal-Nr.</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
+              <TableHead>Standort</TableHead>
               <TableHead>Abteilung</TableHead>
               <TableHead>Position</TableHead>
               <TableHead>Gesichtsprofil</TableHead>
@@ -304,6 +339,7 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
                 <TableCell className="font-medium">{employee.employee_number}</TableCell>
                 <TableCell>{employee.first_name} {employee.last_name}</TableCell>
                 <TableCell>{employee.email}</TableCell>
+                <TableCell>{employee.locations?.name || "-"}</TableCell>
                 <TableCell>{employee.department || "-"}</TableCell>
                 <TableCell>{employee.position || "-"}</TableCell>
                 <TableCell>
