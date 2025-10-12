@@ -86,7 +86,7 @@ export const extractFaceDescriptor = async (canvas: HTMLCanvasElement): Promise<
 // Calculate similarity between two face descriptors (cosine similarity)
 export const calculateSimilarity = (desc1: number[], desc2: number[]): number => {
   if (desc1.length !== desc2.length) {
-    console.error('Descriptor length mismatch');
+    console.error('Descriptor length mismatch:', desc1.length, 'vs', desc2.length);
     return 0;
   }
 
@@ -103,9 +103,15 @@ export const calculateSimilarity = (desc1: number[], desc2: number[]): number =>
   norm1 = Math.sqrt(norm1);
   norm2 = Math.sqrt(norm2);
 
-  if (norm1 === 0 || norm2 === 0) return 0;
+  console.log('Similarity calculation - Norms:', { norm1: norm1.toFixed(4), norm2: norm2.toFixed(4) });
+
+  if (norm1 === 0 || norm2 === 0) {
+    console.warn('Zero norm detected!');
+    return 0;
+  }
 
   const similarity = dotProduct / (norm1 * norm2);
+  console.log('Calculated similarity:', similarity.toFixed(4));
   return similarity;
 };
 
@@ -113,20 +119,32 @@ export const calculateSimilarity = (desc1: number[], desc2: number[]): number =>
 export const findBestMatch = (
   currentDescriptor: number[],
   employees: any[],
-  threshold: number = 0.70  // Balanced threshold
+  threshold: number = 0.80  // Higher threshold for better precision
 ): { employee: any; similarity: number } | null => {
   let bestMatch: any = null;
   let bestSimilarity = 0;
+  
+  console.log('=== Starting face matching ===');
+  console.log('Number of employees with faces:', employees.filter(e => e.face_profiles?.face_descriptor?.descriptor).length);
+  console.log('Threshold:', threshold);
+
+  const similarities: Array<{ name: string; similarity: number }> = [];
 
   for (const employee of employees) {
     if (!employee.face_profiles?.face_descriptor?.descriptor) {
+      console.log(`Skipping ${employee.first_name} ${employee.last_name} - no face profile`);
       continue;
     }
 
     const storedDescriptor = employee.face_profiles.face_descriptor.descriptor;
+    console.log(`\nComparing with ${employee.first_name} ${employee.last_name}:`);
+    console.log('Stored descriptor length:', storedDescriptor.length);
+    console.log('Current descriptor length:', currentDescriptor.length);
+    
     const similarity = calculateSimilarity(currentDescriptor, storedDescriptor);
+    similarities.push({ name: `${employee.first_name} ${employee.last_name}`, similarity });
 
-    console.log(`Similarity with ${employee.first_name} ${employee.last_name}:`, similarity);
+    console.log(`→ Similarity: ${(similarity * 100).toFixed(2)}%`);
 
     if (similarity > bestSimilarity && similarity >= threshold) {
       bestSimilarity = similarity;
@@ -134,12 +152,18 @@ export const findBestMatch = (
     }
   }
 
+  console.log('\n=== All similarities ===');
+  similarities.sort((a, b) => b.similarity - a.similarity);
+  similarities.forEach(s => console.log(`${s.name}: ${(s.similarity * 100).toFixed(2)}%`));
+
   if (bestMatch) {
-    console.log(`Best match found: ${bestMatch.first_name} ${bestMatch.last_name} with similarity ${bestSimilarity}`);
+    console.log(`\n✓ Best match found: ${bestMatch.first_name} ${bestMatch.last_name}`);
+    console.log(`✓ Similarity: ${(bestSimilarity * 100).toFixed(2)}%`);
     return { employee: bestMatch, similarity: bestSimilarity };
   }
 
-  console.log('No match found above threshold');
+  console.log(`\n✗ No match found above threshold (${(threshold * 100).toFixed(0)}%)`);
+  console.log(`Highest similarity was: ${(bestSimilarity * 100).toFixed(2)}%`);
   return null;
 };
 
