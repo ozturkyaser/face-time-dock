@@ -128,6 +128,8 @@ const EmployeeLogin = ({ onLoginSuccess }: EmployeeLoginProps) => {
         return;
       }
 
+      console.log('✓ Face descriptor extracted:', descriptor.length, 'dimensions');
+
       const { data: profiles, error } = await supabase
         .from("face_profiles")
         .select(`
@@ -142,40 +144,53 @@ const EmployeeLogin = ({ onLoginSuccess }: EmployeeLoginProps) => {
         `);
 
       if (error || !profiles || profiles.length === 0) {
+        console.error('No profiles found:', error);
         toast.error("Keine registrierten Mitarbeiter gefunden");
         setIsRecognizing(false);
         return;
       }
 
+      console.log(`Found ${profiles.length} total profiles`);
+
       // Filter nur Profile mit dem neuen Modell (1000 Dimensionen)
       const compatibleProfiles = profiles.filter(profile => {
         const faceDesc = profile.face_descriptor as any;
         const descriptorLength = faceDesc?.descriptor?.length;
+        console.log(`Profile for ${profile.employees.first_name}: ${descriptorLength} dimensions`);
         return descriptorLength === 1000;
       });
 
+      console.log(`✓ Found ${compatibleProfiles.length} compatible profiles (1000 dimensions)`);
+
       if (compatibleProfiles.length === 0) {
-        toast.error("Keine kompatiblen Gesichtsprofile gefunden. Bitte kontaktieren Sie den Administrator.");
+        toast.error("Ihr Gesichtsprofil ist veraltet. Bitte melden Sie sich beim Administrator, um Ihr Gesicht neu zu registrieren.", {
+          duration: 5000
+        });
         setIsRecognizing(false);
         return;
       }
 
-      console.log(`Checking against ${compatibleProfiles.length} compatible profiles (1000 dimensions)`);
-      const match = findBestMatch(descriptor, compatibleProfiles);
+      // Lower threshold for better matching
+      const match = findBestMatch(descriptor, compatibleProfiles, 0.70);
 
       if (match) {
         const employee = match.employee.employees;
+        console.log(`✓ Match found: ${employee.first_name} ${employee.last_name} (${(match.similarity * 100).toFixed(1)}%)`);
+        
         if (!employee.is_active) {
           toast.error("Ihr Konto ist deaktiviert");
           setIsRecognizing(false);
           return;
         }
 
-        toast.success(`Willkommen ${employee.first_name}!`);
+        toast.success(`Willkommen ${employee.first_name}! (${(match.similarity * 100).toFixed(0)}% Übereinstimmung)`);
         stopCamera();
         onLoginSuccess(employee);
       } else {
-        toast.error("Gesicht nicht erkannt. Bitte versuchen Sie es erneut oder verwenden Sie die PIN.");
+        console.log('✗ No match found above threshold');
+        toast.error("Gesicht nicht erkannt. Bitte versuchen Sie es erneut oder verwenden Sie die PIN.", {
+          description: "Stellen Sie sicher, dass Ihr Gesicht gut beleuchtet ist und Sie direkt in die Kamera schauen."
+        });
         setIsRecognizing(false);
       }
     } catch (error) {
