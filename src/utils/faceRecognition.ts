@@ -1,4 +1,4 @@
-import { pipeline, env, RawImage } from '@huggingface/transformers';
+import { pipeline, env } from '@huggingface/transformers';
 
 // Configure to use local models
 env.allowLocalModels = true;
@@ -6,17 +6,16 @@ env.allowRemoteModels = true;
 
 let featureExtractor: any = null;
 
-// Initialize the face recognition model with a proper image model
+// Initialize the face recognition model
 export const initializeFaceRecognition = async () => {
   if (featureExtractor) return featureExtractor;
   
   try {
     console.log('Loading face recognition model...');
-    // Using Vision Transformer for proper image feature extraction
+    // Using a robust image feature extraction model
     featureExtractor = await pipeline(
       'image-feature-extraction',
-      'Xenova/vit-base-patch16-224-in21k',
-      { device: 'wasm' }
+      'Xenova/clip-vit-base-patch32'
     );
     console.log('Face recognition model loaded successfully');
     return featureExtractor;
@@ -26,42 +25,58 @@ export const initializeFaceRecognition = async () => {
   }
 };
 
-// Extract face descriptor from canvas using proper ML model
+// Extract face descriptor from canvas
 export const extractFaceDescriptor = async (canvas: HTMLCanvasElement): Promise<number[]> => {
   try {
     if (!featureExtractor) {
       await initializeFaceRecognition();
     }
 
-    // Convert canvas to blob then to RawImage for the model
-    const blob = await new Promise<Blob>((resolve) => {
-      canvas.toBlob((blob) => resolve(blob!), 'image/jpeg', 0.95);
+    console.log('Extracting face descriptor from canvas...');
+    
+    // Prepare canvas for model input
+    const targetSize = 224;
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = targetSize;
+    tempCanvas.height = targetSize;
+    const tempCtx = tempCanvas.getContext('2d');
+    if (!tempCtx) throw new Error('Could not get canvas context');
+    
+    // Draw and resize image
+    tempCtx.drawImage(canvas, 0, 0, targetSize, targetSize);
+    
+    // Convert to base64 URL for the model
+    const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.95);
+    
+    console.log('Processing image with ML model...');
+    
+    // Extract features using CLIP model
+    const output = await featureExtractor(dataUrl, {
+      pooling: 'mean',
+      normalize: true
     });
     
-    const arrayBuffer = await blob.arrayBuffer();
-    const rawImage = await RawImage.fromBlob(blob);
+    console.log('Model output received:', output);
     
-    // Extract features using the Vision Transformer model
-    const output = await featureExtractor(rawImage);
-    
-    // Convert output to array
+    // Extract descriptor from output
     let descriptor: number[];
-    if (output && output.data) {
-      descriptor = Array.from(output.data);
+    if (output && typeof output === 'object' && 'data' in output) {
+      descriptor = Array.from(output.data as Float32Array);
     } else if (Array.isArray(output)) {
       descriptor = output;
+    } else if (output && typeof output === 'object' && 'tolist' in output) {
+      descriptor = output.tolist();
+      if (Array.isArray(descriptor[0])) {
+        descriptor = descriptor[0]; // Flatten if nested
+      }
     } else {
       throw new Error('Unexpected model output format');
     }
     
-    // Normalize the descriptor
-    const norm = Math.sqrt(descriptor.reduce((sum, val) => sum + val * val, 0));
-    const normalizedDescriptor = descriptor.map(val => val / (norm || 1));
+    console.log('Face descriptor extracted:', descriptor.length, 'dimensions');
+    console.log('First 5 values:', descriptor.slice(0, 5));
     
-    console.log('Face descriptor extracted:', normalizedDescriptor.length, 'dimensions');
-    console.log('Descriptor norm:', norm);
-    
-    return normalizedDescriptor;
+    return descriptor;
   } catch (error) {
     console.error('Error extracting face descriptor:', error);
     throw error;
@@ -98,7 +113,7 @@ export const calculateSimilarity = (desc1: number[], desc2: number[]): number =>
 export const findBestMatch = (
   currentDescriptor: number[],
   employees: any[],
-  threshold: number = 0.75  // Increased threshold for better precision
+  threshold: number = 0.70  // Balanced threshold
 ): { employee: any; similarity: number } | null => {
   let bestMatch: any = null;
   let bestSimilarity = 0;
