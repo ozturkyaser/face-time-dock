@@ -18,6 +18,7 @@ interface Employee {
     id: string;
     created_at: string;
     updated_at: string;
+    image_url: string | null;
   } | null;
 }
 
@@ -40,7 +41,8 @@ const FaceProfileManagement = () => {
         face_profiles (
           id,
           created_at,
-          updated_at
+          updated_at,
+          image_url
         )
       `)
       .eq("is_active", true)
@@ -109,9 +111,19 @@ const FaceProfileManagement = () => {
                   <CardContent className="py-4">
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-4">
-                        <div className="bg-primary/10 rounded-full p-3">
-                          <User className="h-5 w-5 text-primary" />
-                        </div>
+                        {employee.face_profiles?.image_url ? (
+                          <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-primary/20">
+                            <img 
+                              src={employee.face_profiles.image_url} 
+                              alt={`${employee.first_name} ${employee.last_name}`}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className="bg-primary/10 rounded-full p-3">
+                            <User className="h-5 w-5 text-primary" />
+                          </div>
+                        )}
                         <div>
                           <p className="font-semibold">
                             {employee.first_name} {employee.last_name}
