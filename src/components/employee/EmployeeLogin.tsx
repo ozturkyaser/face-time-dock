@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { User } from "lucide-react";
+import { User, Camera } from "lucide-react";
+import { extractFaceDescriptor, findBestMatch } from "@/utils/faceRecognition";
 
 interface EmployeeLoginProps {
   onLoginSuccess: (employee: any) => void;
@@ -15,6 +17,45 @@ const EmployeeLogin = ({ onLoginSuccess }: EmployeeLoginProps) => {
   const [employeeNumber, setEmployeeNumber] = useState("");
   const [pin, setPin] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [loginMethod, setLoginMethod] = useState<"pin" | "face">("pin");
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [isRecognizing, setIsRecognizing] = useState(false);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  useEffect(() => {
+    if (loginMethod === "face" && !isCameraActive) {
+      startCamera();
+    } else if (loginMethod === "pin" && isCameraActive) {
+      stopCamera();
+    }
+    return () => stopCamera();
+  }, [loginMethod]);
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: "user" } 
+      });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        streamRef.current = stream;
+        setIsCameraActive(true);
+      }
+    } catch (error) {
+      console.error("Error starting camera:", error);
+      toast.error("Kamera konnte nicht gestartet werden");
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+      setIsCameraActive(false);
+    }
+  };
 
   const hashPin = async (pin: string): Promise<string> => {
     const encoder = new TextEncoder();
@@ -60,6 +101,76 @@ const EmployeeLogin = ({ onLoginSuccess }: EmployeeLoginProps) => {
     }
   };
 
+  const handleFaceLogin = async () => {
+    if (!videoRef.current || !canvasRef.current || isRecognizing) return;
+
+    setIsRecognizing(true);
+
+    try {
+      const canvas = canvasRef.current;
+      const video = videoRef.current;
+      
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) {
+        throw new Error("Canvas context not available");
+      }
+
+      ctx.drawImage(video, 0, 0);
+
+      const descriptor = await extractFaceDescriptor(canvas);
+      
+      if (!descriptor) {
+        toast.error("Kein Gesicht erkannt. Bitte positionieren Sie sich vor der Kamera.");
+        setIsRecognizing(false);
+        return;
+      }
+
+      const { data: profiles, error } = await supabase
+        .from("face_profiles")
+        .select(`
+          *,
+          employees!inner (
+            id,
+            employee_number,
+            first_name,
+            last_name,
+            is_active
+          )
+        `);
+
+      if (error || !profiles || profiles.length === 0) {
+        toast.error("Keine registrierten Mitarbeiter gefunden");
+        setIsRecognizing(false);
+        return;
+      }
+
+      const match = findBestMatch(descriptor, profiles);
+
+      if (match) {
+        const employee = match.employee.employees;
+        if (!employee.is_active) {
+          toast.error("Ihr Konto ist deaktiviert");
+          setIsRecognizing(false);
+          return;
+        }
+
+        toast.success(`Willkommen ${employee.first_name}!`);
+        stopCamera();
+        onLoginSuccess(employee);
+      } else {
+        toast.error("Gesicht nicht erkannt. Bitte versuchen Sie es erneut oder verwenden Sie die PIN.");
+        setIsRecognizing(false);
+      }
+    } catch (error) {
+      console.error("Face recognition error:", error);
+      toast.error("Fehler bei der Gesichtserkennung");
+      setIsRecognizing(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
       <Card className="w-full max-w-md shadow-2xl">
@@ -73,37 +184,86 @@ const EmployeeLogin = ({ onLoginSuccess }: EmployeeLoginProps) => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="employeeNumber">Mitarbeiternummer</Label>
-              <Input
-                id="employeeNumber"
-                type="text"
-                placeholder="z.B. 001"
-                value={employeeNumber}
-                onChange={(e) => setEmployeeNumber(e.target.value)}
-                disabled={isLoading}
-                autoFocus
-              />
-            </div>
+          <Tabs value={loginMethod} onValueChange={(v) => setLoginMethod(v as "pin" | "face")}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="pin" className="gap-2">
+                <User className="h-4 w-4" />
+                PIN
+              </TabsTrigger>
+              <TabsTrigger value="face" className="gap-2">
+                <Camera className="h-4 w-4" />
+                Gesichtserkennung
+              </TabsTrigger>
+            </TabsList>
 
-            <div className="space-y-2">
-              <Label htmlFor="pin">PIN</Label>
-              <Input
-                id="pin"
-                type="password"
-                placeholder="••••"
-                value={pin}
-                onChange={(e) => setPin(e.target.value)}
-                disabled={isLoading}
-                maxLength={6}
-              />
-            </div>
+            <TabsContent value="pin" className="space-y-4 mt-4">
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="employeeNumber">Mitarbeiternummer</Label>
+                  <Input
+                    id="employeeNumber"
+                    type="text"
+                    placeholder="z.B. 001"
+                    value={employeeNumber}
+                    onChange={(e) => setEmployeeNumber(e.target.value)}
+                    disabled={isLoading}
+                    autoFocus
+                  />
+                </div>
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Anmelden..." : "Anmelden"}
-            </Button>
-          </form>
+                <div className="space-y-2">
+                  <Label htmlFor="pin">PIN</Label>
+                  <Input
+                    id="pin"
+                    type="password"
+                    placeholder="••••"
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value)}
+                    disabled={isLoading}
+                    maxLength={6}
+                  />
+                </div>
+
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? "Anmelden..." : "Anmelden"}
+                </Button>
+              </form>
+            </TabsContent>
+
+            <TabsContent value="face" className="space-y-4 mt-4">
+              <div className="space-y-4">
+                <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover"
+                  />
+                  <canvas ref={canvasRef} className="hidden" />
+                  
+                  {!isCameraActive && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Camera className="h-12 w-12 text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
+
+                <div className="text-center text-sm text-muted-foreground">
+                  Positionieren Sie Ihr Gesicht vor der Kamera
+                </div>
+
+                <Button 
+                  onClick={handleFaceLogin} 
+                  className="w-full gap-2" 
+                  disabled={!isCameraActive || isRecognizing}
+                >
+                  <Camera className="h-4 w-4" />
+                  {isRecognizing ? "Erkenne..." : "Mit Gesicht anmelden"}
+                </Button>
+              </div>
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
     </div>
