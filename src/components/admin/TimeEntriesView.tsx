@@ -4,18 +4,53 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { format, differenceInMinutes } from "date-fns";
+import { format, differenceInMinutes, subDays, subMonths, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
 import { de } from "date-fns/locale";
-import { Download } from "lucide-react";
+import { Download, Calendar } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const TimeEntriesView = () => {
   const [entries, setEntries] = useState<any[]>([]);
+  const [timeFilter, setTimeFilter] = useState<string>("month");
 
   useEffect(() => {
     loadEntries();
-  }, []);
+  }, [timeFilter]);
+
+  const getDateRange = () => {
+    const now = new Date();
+    switch (timeFilter) {
+      case "week":
+        return {
+          start: startOfWeek(now, { locale: de }),
+          end: endOfWeek(now, { locale: de })
+        };
+      case "month":
+        return {
+          start: startOfMonth(now),
+          end: endOfMonth(now)
+        };
+      case "90days":
+        return {
+          start: subDays(now, 90),
+          end: now
+        };
+      case "year":
+        return {
+          start: startOfYear(now),
+          end: endOfYear(now)
+        };
+      default:
+        return {
+          start: startOfMonth(now),
+          end: endOfMonth(now)
+        };
+    }
+  };
 
   const loadEntries = async () => {
+    const { start, end } = getDateRange();
+    
     const { data, error } = await supabase
       .from("time_entries")
       .select(`
@@ -31,8 +66,9 @@ const TimeEntriesView = () => {
           )
         )
       `)
-      .order("check_in", { ascending: false })
-      .limit(50);
+      .gte("check_in", start.toISOString())
+      .lte("check_in", end.toISOString())
+      .order("check_in", { ascending: false });
     
     if (error) {
       console.error("Error loading entries:", error);
@@ -47,6 +83,21 @@ const TimeEntriesView = () => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     return `${hours}h ${mins}m`;
+  };
+
+  const getFilterLabel = () => {
+    switch (timeFilter) {
+      case "week":
+        return "Woche";
+      case "month":
+        return "Monat";
+      case "90days":
+        return "90-Tage";
+      case "year":
+        return "Jahr";
+      default:
+        return "Monat";
+    }
   };
 
   const exportToCSV = () => {
@@ -96,8 +147,9 @@ const TimeEntriesView = () => {
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     
+    const filterLabel = getFilterLabel();
     link.setAttribute("href", url);
-    link.setAttribute("download", `zeiterfassungen_${format(new Date(), "yyyy-MM-dd_HH-mm")}.csv`);
+    link.setAttribute("download", `zeiterfassungen_${filterLabel}_${format(new Date(), "yyyy-MM-dd_HH-mm")}.csv`);
     link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();
@@ -114,10 +166,26 @@ const TimeEntriesView = () => {
               Übersicht aller Check-in und Check-out Aktivitäten
             </CardDescription>
           </div>
-          <Button onClick={exportToCSV} variant="outline" className="gap-2">
-            <Download className="h-4 w-4" />
-            CSV Exportieren
-          </Button>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <Select value={timeFilter} onValueChange={setTimeFilter}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="week">Diese Woche</SelectItem>
+                  <SelectItem value="month">Dieser Monat</SelectItem>
+                  <SelectItem value="90days">Letzte 90 Tage</SelectItem>
+                  <SelectItem value="year">Dieses Jahr</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button onClick={exportToCSV} variant="outline" className="gap-2">
+              <Download className="h-4 w-4" />
+              CSV Exportieren
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
