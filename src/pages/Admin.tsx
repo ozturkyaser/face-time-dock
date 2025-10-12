@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, Clock, Calendar, DollarSign, LayoutDashboard } from "lucide-react";
+import { Users, Clock, Calendar, DollarSign, LayoutDashboard, Camera } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import TimeEntriesView from "@/components/admin/TimeEntriesView";
 import VacationManagement from "@/components/admin/VacationManagement";
 import SalaryAdvances from "@/components/admin/SalaryAdvances";
 import ManualTimeTracking from "@/components/admin/ManualTimeTracking";
+import FaceProfileManagement from "@/components/admin/FaceProfileManagement";
 
 const Admin = () => {
   const [stats, setStats] = useState({
@@ -117,10 +118,14 @@ const Admin = () => {
         </div>
 
         <Tabs defaultValue="employees" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 h-auto p-1">
+          <TabsList className="grid w-full grid-cols-7 h-auto p-1">
             <TabsTrigger value="employees" className="flex flex-col gap-1 py-3">
               <Users className="h-5 w-5" />
               <span className="text-xs sm:text-sm">Mitarbeiter</span>
+            </TabsTrigger>
+            <TabsTrigger value="faces" className="flex flex-col gap-1 py-3">
+              <Camera className="h-5 w-5" />
+              <span className="text-xs sm:text-sm">Gesichter</span>
             </TabsTrigger>
             <TabsTrigger value="locations" className="flex flex-col gap-1 py-3">
               <LayoutDashboard className="h-5 w-5" />
@@ -146,6 +151,10 @@ const Admin = () => {
 
           <TabsContent value="employees" className="space-y-4">
             <EmployeeManagement onUpdate={loadStats} />
+          </TabsContent>
+
+          <TabsContent value="faces" className="space-y-4">
+            <FaceProfileManagement />
           </TabsContent>
 
           <TabsContent value="locations" className="space-y-4">
