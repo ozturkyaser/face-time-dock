@@ -78,13 +78,25 @@ export const generateVacationPDF = async (data: VacationPDFData): Promise<Blob> 
   // Employee Signature
   if (data.employeeSignature) {
     doc.text("Mitarbeiter:", 20, sigStartY + 15);
-    doc.addImage(data.employeeSignature, "PNG", 20, sigStartY + 20, 60, 20);
+    try {
+      doc.addImage(data.employeeSignature, "PNG", 20, sigStartY + 20, 60, 20);
+    } catch (error) {
+      console.error("Error adding employee signature image:", error);
+      doc.setFontSize(10);
+      doc.text("(Signatur nicht verfügbar)", 20, sigStartY + 30);
+    }
   }
   
   // Admin Signature
   if (data.adminSignature) {
     doc.text("Administrator:", 110, sigStartY + 15);
-    doc.addImage(data.adminSignature, "PNG", 110, sigStartY + 20, 60, 20);
+    try {
+      doc.addImage(data.adminSignature, "PNG", 110, sigStartY + 20, 60, 20);
+    } catch (error) {
+      console.error("Error adding admin signature image:", error);
+      doc.setFontSize(10);
+      doc.text("(Signatur nicht verfügbar)", 110, sigStartY + 30);
+    }
   }
   
   // Approval Date
