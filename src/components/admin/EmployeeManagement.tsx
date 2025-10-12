@@ -33,7 +33,8 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
     position: "",
     location_id: "",
     hourly_rate: "",
-    salary: ""
+    salary: "",
+    pin: ""
   });
 
   useEffect(() => {
@@ -70,11 +71,28 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const employeeData = {
-      ...formData,
+    const employeeData: any = {
+      employee_number: formData.employee_number,
+      first_name: formData.first_name,
+      last_name: formData.last_name,
+      email: formData.email,
+      phone: formData.phone || null,
+      department: formData.department || null,
+      position: formData.position || null,
+      location_id: formData.location_id || null,
       hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : null,
       salary: formData.salary ? parseFloat(formData.salary) : null
     };
+
+    // Hash PIN if provided
+    if (formData.pin) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(formData.pin);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      employeeData.pin_hash = hashHex;
+    }
 
     if (editingEmployee) {
       const { error } = await supabase
@@ -111,7 +129,8 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
       position: "",
       location_id: "",
       hourly_rate: "",
-      salary: ""
+      salary: "",
+      pin: ""
     });
     loadEmployees();
     onUpdate?.();
@@ -129,7 +148,8 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
       position: employee.position || "",
       location_id: employee.location_id || "",
       hourly_rate: employee.hourly_rate?.toString() || "",
-      salary: employee.salary?.toString() || ""
+      salary: employee.salary?.toString() || "",
+      pin: ""
     });
     setIsDialogOpen(true);
   };
@@ -304,6 +324,21 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
                       onChange={(e) => setFormData({ ...formData, salary: e.target.value })}
                     />
                   </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="pin">Mitarbeiter-PIN {editingEmployee ? "(Leer lassen, um nicht zu ändern)" : "*"}</Label>
+                  <Input
+                    id="pin"
+                    type="password"
+                    placeholder="4-6 stellige PIN"
+                    value={formData.pin}
+                    onChange={(e) => setFormData({ ...formData, pin: e.target.value })}
+                    required={!editingEmployee}
+                    maxLength={6}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Diese PIN wird für den Zugang zum Mitarbeiter-Portal verwendet
+                  </p>
                 </div>
                 <div className="flex justify-end gap-2">
                   <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>

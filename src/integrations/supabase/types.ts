@@ -29,6 +29,7 @@ export type Database = {
           last_name: string
           location_id: string | null
           phone: string | null
+          pin_hash: string | null
           position: string | null
           salary: number | null
           updated_at: string | null
@@ -47,6 +48,7 @@ export type Database = {
           last_name: string
           location_id?: string | null
           phone?: string | null
+          pin_hash?: string | null
           position?: string | null
           salary?: number | null
           updated_at?: string | null
@@ -65,6 +67,7 @@ export type Database = {
           last_name?: string
           location_id?: string | null
           phone?: string | null
+          pin_hash?: string | null
           position?: string | null
           salary?: number | null
           updated_at?: string | null
