@@ -282,6 +282,10 @@ export type Database = {
       }
       vacation_requests: {
         Row: {
+          alternative_end_date: string | null
+          alternative_notes: string | null
+          alternative_start_date: string | null
+          alternative_total_days: number | null
           approved_at: string | null
           approved_by: string | null
           created_at: string | null
@@ -296,6 +300,10 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          alternative_end_date?: string | null
+          alternative_notes?: string | null
+          alternative_start_date?: string | null
+          alternative_total_days?: number | null
           approved_at?: string | null
           approved_by?: string | null
           created_at?: string | null
@@ -310,6 +318,10 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          alternative_end_date?: string | null
+          alternative_notes?: string | null
+          alternative_start_date?: string | null
+          alternative_total_days?: number | null
           approved_at?: string | null
           approved_by?: string | null
           created_at?: string | null
