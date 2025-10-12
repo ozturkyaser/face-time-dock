@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import FaceReRegistration from "./FaceReRegistration";
 
 interface EmployeeManagementProps {
   onUpdate?: () => void;
@@ -18,6 +19,8 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
   const [employees, setEmployees] = useState<any[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<any>(null);
+  const [showFaceRegistration, setShowFaceRegistration] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
   const [formData, setFormData] = useState({
     employee_number: "",
     first_name: "",
@@ -130,8 +133,30 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
     onUpdate?.();
   };
 
+  const handleFaceRegistration = (employee: any) => {
+    setSelectedEmployee(employee);
+    setShowFaceRegistration(true);
+  };
+
   return (
-    <Card className="shadow-lg">
+    <>
+      {showFaceRegistration && selectedEmployee && (
+        <FaceReRegistration
+          employee={selectedEmployee}
+          onComplete={() => {
+            setShowFaceRegistration(false);
+            setSelectedEmployee(null);
+            loadEmployees();
+            onUpdate?.();
+          }}
+          onCancel={() => {
+            setShowFaceRegistration(false);
+            setSelectedEmployee(null);
+          }}
+        />
+      )}
+      
+      <Card className="shadow-lg">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
@@ -305,6 +330,14 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
                     <Button
                       variant="ghost"
                       size="sm"
+                      onClick={() => handleFaceRegistration(employee)}
+                      title={employee.face_profiles ? "Gesicht neu registrieren" : "Gesicht registrieren"}
+                    >
+                      <Camera className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => handleEdit(employee)}
                     >
                       <Edit className="h-4 w-4" />
@@ -324,6 +357,7 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
         </Table>
       </CardContent>
     </Card>
+    </>
   );
 };
 
