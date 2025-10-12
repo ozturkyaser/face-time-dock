@@ -13,6 +13,7 @@ import SalaryAdvances from "@/components/admin/SalaryAdvances";
 import ManualTimeTracking from "@/components/admin/ManualTimeTracking";
 import FaceProfileManagement from "@/components/admin/FaceProfileManagement";
 import MasterReset from "@/components/admin/MasterReset";
+import EmployeeTimeDetails from "@/components/admin/EmployeeTimeDetails";
 
 const Admin = () => {
   const [stats, setStats] = useState({
@@ -171,6 +172,7 @@ const Admin = () => {
           </TabsContent>
 
           <TabsContent value="time" className="space-y-4">
+            <EmployeeTimeDetails />
             <ManualTimeTracking />
             <TimeEntriesView />
           </TabsContent>
