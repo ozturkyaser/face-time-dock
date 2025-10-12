@@ -112,6 +112,23 @@ const TimeEntriesView = () => {
     return `${hours}h ${mins}m`;
   };
 
+  const calculateTotalMinutes = () => {
+    return entries.reduce((total, entry) => {
+      if (entry.check_out) {
+        const minutes = differenceInMinutes(new Date(entry.check_out), new Date(entry.check_in));
+        const breakMinutes = entry.break_duration_minutes || 0;
+        return total + minutes - breakMinutes;
+      }
+      return total;
+    }, 0);
+  };
+
+  const formatTotalTime = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours}h ${mins}m`;
+  };
+
   const getFilterLabel = () => {
     switch (timeFilter) {
       case "week":
@@ -284,6 +301,23 @@ const TimeEntriesView = () => {
             ))}
           </TableBody>
         </Table>
+        
+        {entries.length > 0 && (
+          <div className="mt-6 p-4 bg-primary/5 rounded-lg border border-primary/20">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-muted-foreground">Gesamtarbeitszeit (ohne Pausen)</div>
+                <div className="text-2xl font-bold text-primary">
+                  {formatTotalTime(calculateTotalMinutes())}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm text-muted-foreground">Einträge</div>
+                <div className="text-xl font-semibold">{entries.length}</div>
+              </div>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
