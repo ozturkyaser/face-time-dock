@@ -21,7 +21,7 @@ const SalaryAdvances = () => {
       .from("salary_advances")
       .select(`
         *,
-        employees (
+        employees!salary_advances_employee_id_fkey (
           employee_number,
           first_name,
           last_name

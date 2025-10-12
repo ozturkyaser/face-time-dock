@@ -25,7 +25,7 @@ const VacationManagement = ({ onUpdate }: VacationManagementProps) => {
       .from("vacation_requests")
       .select(`
         *,
-        employees (
+        employees!vacation_requests_employee_id_fkey (
           employee_number,
           first_name,
           last_name
