@@ -5,13 +5,20 @@ import EmployeeLogin from "@/components/employee/EmployeeLogin";
 import EmployeeTimeEntries from "@/components/employee/EmployeeTimeEntries";
 import EmployeeVacations from "@/components/employee/EmployeeVacations";
 import EmployeeAdvances from "@/components/employee/EmployeeAdvances";
+import VacationRequestForm from "@/components/employee/VacationRequestForm";
+import AdvanceRequestForm from "@/components/employee/AdvanceRequestForm";
 import { LogOut, User, Clock, Calendar, DollarSign } from "lucide-react";
 
 const EmployeePortal = () => {
   const [employee, setEmployee] = useState<any>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const handleLogout = () => {
     setEmployee(null);
+  };
+
+  const handleRefresh = () => {
+    setRefreshKey(prev => prev + 1);
   };
 
   if (!employee) {
@@ -103,9 +110,23 @@ const EmployeePortal = () => {
         </div>
 
         <div className="space-y-6">
-          <EmployeeTimeEntries employeeId={employee.id} />
-          <EmployeeVacations employeeId={employee.id} />
-          <EmployeeAdvances employeeId={employee.id} />
+          <EmployeeTimeEntries employeeId={employee.id} key={`time-${refreshKey}`} />
+          
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div className="space-y-6">
+              <div className="flex gap-2">
+                <VacationRequestForm employeeId={employee.id} onSuccess={handleRefresh} />
+              </div>
+              <EmployeeVacations employeeId={employee.id} key={`vacation-${refreshKey}`} />
+            </div>
+            
+            <div className="space-y-6">
+              <div className="flex gap-2">
+                <AdvanceRequestForm employeeId={employee.id} onSuccess={handleRefresh} />
+              </div>
+              <EmployeeAdvances employeeId={employee.id} key={`advance-${refreshKey}`} />
+            </div>
+          </div>
         </div>
       </div>
     </div>
