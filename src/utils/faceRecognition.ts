@@ -14,13 +14,10 @@ export const initializeFaceRecognition = async () => {
   
   try {
     console.log('Loading face recognition model from HuggingFace...');
-    // Using MobileNetV2 for better browser compatibility
+    // Using MobileNetV4 for better browser compatibility and availability
     featureExtractor = await pipeline(
       'image-feature-extraction',
-      'Xenova/mobilenet_v2_1.0_224',
-      {
-        revision: 'main',
-      }
+      'onnx-community/mobilenetv4_conv_small.e2400_r224_in1k'
     );
     console.log('Face recognition model loaded successfully');
     return featureExtractor;
