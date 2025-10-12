@@ -154,8 +154,18 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Mitarbeiter wirklich löschen?")) return;
+  const handleDelete = async (id: string, employee: any) => {
+    const confirmation = window.confirm(
+      `⚠️ WARNUNG: Mitarbeiter "${employee.first_name} ${employee.last_name}" löschen?\n\n` +
+      `Dies löscht ALLE zugehörigen Daten:\n` +
+      `- Gesichtsprofil\n` +
+      `- Zeiterfassungen\n` +
+      `- Urlaubsanträge\n` +
+      `- Gehaltsvorschüsse\n\n` +
+      `Diese Aktion kann NICHT rückgängig gemacht werden!`
+    );
+    
+    if (!confirmation) return;
     
     const { error } = await supabase
       .from("employees")
@@ -163,11 +173,12 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
       .eq("id", id);
     
     if (error) {
-      toast.error("Fehler beim Löschen");
+      console.error("Delete error:", error);
+      toast.error("Fehler beim Löschen des Mitarbeiters");
       return;
     }
     
-    toast.success("Mitarbeiter gelöscht");
+    toast.success(`Mitarbeiter "${employee.first_name} ${employee.last_name}" und alle zugehörigen Daten wurden gelöscht`);
     loadEmployees();
     onUpdate?.();
   };
@@ -416,7 +427,9 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleDelete(employee.id)}
+                      onClick={() => handleDelete(employee.id, employee)}
+                      className="text-destructive hover:text-destructive"
+                      title="Mitarbeiter und alle Daten löschen"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>

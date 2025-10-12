@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, Clock, Calendar, DollarSign, LayoutDashboard, Camera } from "lucide-react";
+import { Users, Clock, Calendar, DollarSign, LayoutDashboard, Camera, Trash2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import VacationManagement from "@/components/admin/VacationManagement";
 import SalaryAdvances from "@/components/admin/SalaryAdvances";
 import ManualTimeTracking from "@/components/admin/ManualTimeTracking";
 import FaceProfileManagement from "@/components/admin/FaceProfileManagement";
+import MasterReset from "@/components/admin/MasterReset";
 
 const Admin = () => {
   const [stats, setStats] = useState({
@@ -118,7 +119,7 @@ const Admin = () => {
         </div>
 
         <Tabs defaultValue="employees" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7 h-auto p-1">
+          <TabsList className="grid w-full grid-cols-8 h-auto p-1">
             <TabsTrigger value="employees" className="flex flex-col gap-1 py-3">
               <Users className="h-5 w-5" />
               <span className="text-xs sm:text-sm">Mitarbeiter</span>
@@ -146,6 +147,10 @@ const Admin = () => {
             <TabsTrigger value="advances" className="flex flex-col gap-1 py-3">
               <DollarSign className="h-5 w-5" />
               <span className="text-xs sm:text-sm">Vorschüsse</span>
+            </TabsTrigger>
+            <TabsTrigger value="danger" className="flex flex-col gap-1 py-3 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              <span className="text-xs sm:text-sm">Danger</span>
             </TabsTrigger>
           </TabsList>
 
@@ -176,6 +181,10 @@ const Admin = () => {
 
           <TabsContent value="advances" className="space-y-4">
             <SalaryAdvances />
+          </TabsContent>
+
+          <TabsContent value="danger" className="space-y-4">
+            <MasterReset />
           </TabsContent>
         </Tabs>
       </div>
