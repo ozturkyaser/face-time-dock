@@ -97,8 +97,12 @@ const Terminal = () => {
       console.log('Extracting face descriptor...');
       const currentDescriptor = await extractFaceDescriptor(canvas);
       
-      // Get all employees with face profiles
-      const employeesWithFaces = employees.filter(e => e.face_profiles);
+      // Get all employees with face profiles (1000 dimensions only)
+      const employeesWithFaces = employees.filter(e => {
+        if (!e.face_profiles) return false;
+        const faceDesc = e.face_profiles.face_descriptor as any;
+        return faceDesc?.descriptor?.length === 1000;
+      });
       
       if (employeesWithFaces.length === 0) {
         toast.error("Keine registrierten Gesichter gefunden. Bitte registrieren Sie sich zuerst.");

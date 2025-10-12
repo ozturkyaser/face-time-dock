@@ -147,7 +147,21 @@ const EmployeeLogin = ({ onLoginSuccess }: EmployeeLoginProps) => {
         return;
       }
 
-      const match = findBestMatch(descriptor, profiles);
+      // Filter nur Profile mit dem neuen Modell (1000 Dimensionen)
+      const compatibleProfiles = profiles.filter(profile => {
+        const faceDesc = profile.face_descriptor as any;
+        const descriptorLength = faceDesc?.descriptor?.length;
+        return descriptorLength === 1000;
+      });
+
+      if (compatibleProfiles.length === 0) {
+        toast.error("Keine kompatiblen Gesichtsprofile gefunden. Bitte kontaktieren Sie den Administrator.");
+        setIsRecognizing(false);
+        return;
+      }
+
+      console.log(`Checking against ${compatibleProfiles.length} compatible profiles (1000 dimensions)`);
+      const match = findBestMatch(descriptor, compatibleProfiles);
 
       if (match) {
         const employee = match.employee.employees;
