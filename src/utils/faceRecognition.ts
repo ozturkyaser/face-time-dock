@@ -1,9 +1,10 @@
 import { pipeline, env } from '@huggingface/transformers';
 
-// Configure transformers to always download models from remote
+// Configure transformers to download from HuggingFace CDN
 env.allowLocalModels = false;
 env.allowRemoteModels = true;
 env.useBrowserCache = true;
+env.backends.onnx.wasm.proxy = false;
 
 let featureExtractor: any = null;
 
@@ -12,11 +13,14 @@ export const initializeFaceRecognition = async () => {
   if (featureExtractor) return featureExtractor;
   
   try {
-    console.log('Loading face recognition model...');
-    // Using a robust image feature extraction model
+    console.log('Loading face recognition model from HuggingFace...');
+    // Using MobileNetV2 for better browser compatibility
     featureExtractor = await pipeline(
       'image-feature-extraction',
-      'Xenova/clip-vit-base-patch32'
+      'Xenova/mobilenet_v2_1.0_224',
+      {
+        revision: 'main',
+      }
     );
     console.log('Face recognition model loaded successfully');
     return featureExtractor;
