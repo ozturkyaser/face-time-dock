@@ -52,7 +52,7 @@ export const extractFaceDescriptor = async (canvas: HTMLCanvasElement): Promise<
     
     console.log('Processing image with ML model...');
     
-    // Extract features using CLIP model
+    // Extract features using model
     const output = await featureExtractor(dataUrl, {
       pooling: 'mean',
       normalize: true
@@ -75,8 +75,20 @@ export const extractFaceDescriptor = async (canvas: HTMLCanvasElement): Promise<
       throw new Error('Unexpected model output format');
     }
     
+    // Validate descriptor
+    if (!descriptor || descriptor.length === 0) {
+      throw new Error('Invalid descriptor: empty or undefined');
+    }
+    
+    // Check if descriptor contains valid values (not all zeros)
+    const nonZeroValues = descriptor.filter(val => Math.abs(val) > 0.001).length;
+    if (nonZeroValues < descriptor.length * 0.1) {
+      throw new Error('Invalid descriptor: too many zero values');
+    }
+    
     console.log('Face descriptor extracted:', descriptor.length, 'dimensions');
-    console.log('First 5 values:', descriptor.slice(0, 5));
+    console.log('Non-zero values:', nonZeroValues, '/', descriptor.length);
+    console.log('First 5 values:', descriptor.slice(0, 5).map(v => v.toFixed(4)));
     
     return descriptor;
   } catch (error) {
@@ -121,7 +133,7 @@ export const calculateSimilarity = (desc1: number[], desc2: number[]): number =>
 export const findBestMatch = (
   currentDescriptor: number[],
   employees: any[],
-  threshold: number = 0.80  // Higher threshold for better precision
+  threshold: number = 0.85  // Higher threshold for better precision - 85%
 ): { employee: any; similarity: number } | null => {
   let bestMatch: any = null;
   let bestSimilarity = 0;
@@ -129,6 +141,7 @@ export const findBestMatch = (
   console.log('=== Starting face matching ===');
   console.log('Number of employees with faces:', employees.filter(e => e.face_profiles?.face_descriptor?.descriptor).length);
   console.log('Threshold:', threshold);
+  console.log('Current descriptor length:', currentDescriptor.length);
 
   const similarities: Array<{ name: string; similarity: number }> = [];
 
@@ -141,14 +154,18 @@ export const findBestMatch = (
     const storedDescriptor = employee.face_profiles.face_descriptor.descriptor;
     console.log(`\nComparing with ${employee.first_name} ${employee.last_name}:`);
     console.log('Stored descriptor length:', storedDescriptor.length);
-    console.log('Current descriptor length:', currentDescriptor.length);
+    
+    if (currentDescriptor.length !== storedDescriptor.length) {
+      console.log('❌ Descriptor length mismatch - skipping');
+      continue;
+    }
     
     const similarity = calculateSimilarity(currentDescriptor, storedDescriptor);
     similarities.push({ name: `${employee.first_name} ${employee.last_name}`, similarity });
 
     console.log(`→ Similarity: ${(similarity * 100).toFixed(2)}%`);
 
-    if (similarity > bestSimilarity && similarity >= threshold) {
+    if (similarity > bestSimilarity) {
       bestSimilarity = similarity;
       bestMatch = employee;
     }
@@ -157,19 +174,21 @@ export const findBestMatch = (
   console.log('\n=== All similarities ===');
   similarities.sort((a, b) => b.similarity - a.similarity);
   similarities.forEach(s => console.log(`${s.name}: ${(s.similarity * 100).toFixed(2)}%`));
+  console.log(`\nBest similarity: ${(bestSimilarity * 100).toFixed(2)}%`);
+  console.log(`Required threshold: ${(threshold * 100).toFixed(0)}%`);
 
-  if (bestMatch) {
-    console.log(`\n✓ Best match found: ${bestMatch.first_name} ${bestMatch.last_name}`);
+  if (bestMatch && bestSimilarity >= threshold) {
+    console.log(`\n✓ Match found: ${bestMatch.first_name} ${bestMatch.last_name}`);
     console.log(`✓ Similarity: ${(bestSimilarity * 100).toFixed(2)}%`);
     return { employee: bestMatch, similarity: bestSimilarity };
   }
 
-  console.log(`\n✗ No match found above threshold (${(threshold * 100).toFixed(0)}%)`);
+  console.log(`\n✗ No match found above threshold`);
   console.log(`Highest similarity was: ${(bestSimilarity * 100).toFixed(2)}%`);
   return null;
 };
 
-// Check if face is detected in the frame (simple brightness check)
+// Check if face is detected in the frame
 export const detectFace = (canvas: HTMLCanvasElement): boolean => {
   const ctx = canvas.getContext('2d');
   if (!ctx) return false;
@@ -179,20 +198,36 @@ export const detectFace = (canvas: HTMLCanvasElement): boolean => {
   
   let totalBrightness = 0;
   let pixelCount = 0;
+  let variance = 0;
+  const brightnessValues: number[] = [];
   
   // Sample every 10th pixel for performance
   for (let i = 0; i < pixels.length; i += 40) {
     const brightness = (pixels[i] + pixels[i + 1] + pixels[i + 2]) / 3;
     totalBrightness += brightness;
+    brightnessValues.push(brightness);
     pixelCount++;
   }
   
   const avgBrightness = totalBrightness / pixelCount;
   
-  // Check if there's sufficient variation (not all black or all white)
-  // and reasonable brightness
-  const hasFace = avgBrightness > 30 && avgBrightness < 220;
+  // Calculate variance to ensure there's actual content in the image
+  for (const brightness of brightnessValues) {
+    variance += Math.pow(brightness - avgBrightness, 2);
+  }
+  variance = variance / pixelCount;
+  const stdDev = Math.sqrt(variance);
   
-  console.log('Face detection check - Average brightness:', avgBrightness, 'Has face:', hasFace);
+  // Check if there's sufficient variation (not all black, all white, or solid color)
+  // and reasonable brightness
+  const hasGoodBrightness = avgBrightness > 30 && avgBrightness < 220;
+  const hasVariation = stdDev > 20; // Requires meaningful variation in the image
+  const hasFace = hasGoodBrightness && hasVariation;
+  
+  console.log('Face detection check:');
+  console.log('- Average brightness:', avgBrightness.toFixed(2));
+  console.log('- Standard deviation:', stdDev.toFixed(2));
+  console.log('- Has face:', hasFace);
+  
   return hasFace;
 };
