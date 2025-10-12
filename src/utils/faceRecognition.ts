@@ -1,8 +1,9 @@
 import { pipeline, env } from '@huggingface/transformers';
 
-// Configure to use local models
-env.allowLocalModels = true;
+// Configure transformers to always download models from remote
+env.allowLocalModels = false;
 env.allowRemoteModels = true;
+env.useBrowserCache = true;
 
 let featureExtractor: any = null;
 
