@@ -8,6 +8,7 @@ import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { Calendar, Check, X } from "lucide-react";
 import { toast } from "sonner";
+import { generateVacationPDF } from "@/utils/pdfGenerator";
 
 interface EmployeeVacationsProps {
   employeeId: string;
@@ -35,29 +36,91 @@ const EmployeeVacations = ({ employeeId }: EmployeeVacationsProps) => {
   };
 
   const handleAcceptAlternative = async (vacation: any) => {
-    const { error } = await supabase
-      .from("vacation_requests")
-      .update({
-        start_date: vacation.alternative_start_date,
-        end_date: vacation.alternative_end_date,
-        total_days: vacation.alternative_total_days,
-        status: "approved",
-        approved_at: new Date().toISOString(),
-        alternative_start_date: null,
-        alternative_end_date: null,
-        alternative_total_days: null,
-        alternative_notes: null
-      })
-      .eq("id", vacation.id);
+    try {
+      // Get employee data
+      const { data: employee } = await supabase
+        .from("employees")
+        .select("first_name, last_name, employee_number")
+        .eq("id", vacation.employee_id)
+        .single();
 
-    if (error) {
-      console.error("Error accepting alternative:", error);
+      if (!employee) {
+        toast.error("Mitarbeiterdaten nicht gefunden");
+        return;
+      }
+
+      // Update vacation request with alternative dates
+      const { error: updateError } = await supabase
+        .from("vacation_requests")
+        .update({
+          start_date: vacation.alternative_start_date,
+          end_date: vacation.alternative_end_date,
+          total_days: vacation.alternative_total_days,
+          status: "approved",
+          approved_at: new Date().toISOString(),
+          alternative_start_date: null,
+          alternative_end_date: null,
+          alternative_total_days: null,
+          alternative_notes: null
+        })
+        .eq("id", vacation.id);
+
+      if (updateError) {
+        console.error("Error accepting alternative:", updateError);
+        toast.error("Fehler beim Akzeptieren");
+        return;
+      }
+
+      // Generate PDF
+      const pdfBlob = await generateVacationPDF({
+        employeeName: `${employee.first_name} ${employee.last_name}`,
+        employeeNumber: employee.employee_number,
+        requestType: vacation.request_type,
+        startDate: vacation.alternative_start_date,
+        endDate: vacation.alternative_end_date,
+        totalDays: vacation.alternative_total_days,
+        notes: vacation.notes || "",
+        employeeSignature: vacation.employee_signature,
+        adminSignature: vacation.admin_signature,
+        approvedAt: new Date().toISOString()
+      });
+
+      // Upload PDF to storage
+      const fileName = `${vacation.id}_${Date.now()}.pdf`;
+      const { error: uploadError } = await supabase.storage
+        .from("vacation-pdfs")
+        .upload(fileName, pdfBlob, {
+          contentType: "application/pdf",
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error("Error uploading PDF:", uploadError);
+        toast.error("PDF konnte nicht gespeichert werden");
+        return;
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from("vacation-pdfs")
+        .getPublicUrl(fileName);
+
+      // Update request with PDF URL
+      const { error: pdfUpdateError } = await supabase
+        .from("vacation_requests")
+        .update({ pdf_url: urlData.publicUrl })
+        .eq("id", vacation.id);
+
+      if (pdfUpdateError) {
+        console.error("Error updating PDF URL:", pdfUpdateError);
+      }
+
+      toast.success("Gegenvorschlag akzeptiert und PDF erstellt");
+      loadVacations();
+    } catch (error) {
+      console.error("Error in handleAcceptAlternative:", error);
       toast.error("Fehler beim Akzeptieren");
-      return;
     }
-
-    toast.success("Gegenvorschlag akzeptiert");
-    loadVacations();
   };
 
   const handleRejectAlternative = async (vacation: any) => {
