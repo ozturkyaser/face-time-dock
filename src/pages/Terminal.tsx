@@ -110,8 +110,8 @@ const Terminal = () => {
         return;
       }
 
-      // Find best match
-      const match = findBestMatch(currentDescriptor, employeesWithFaces, 0.65); // 65% similarity threshold
+      // Find best match - strict threshold for accurate recognition
+      const match = findBestMatch(currentDescriptor, employeesWithFaces, 0.85); // 85% similarity threshold
       
       if (!match) {
         toast.error("Gesicht nicht erkannt. Bitte versuchen Sie es erneut oder registrieren Sie sich.", {

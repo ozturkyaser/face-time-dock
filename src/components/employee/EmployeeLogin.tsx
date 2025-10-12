@@ -170,8 +170,8 @@ const EmployeeLogin = ({ onLoginSuccess }: EmployeeLoginProps) => {
         return;
       }
 
-      // Lower threshold for better matching
-      const match = findBestMatch(descriptor, compatibleProfiles, 0.70);
+      // Strict threshold for accurate recognition
+      const match = findBestMatch(descriptor, compatibleProfiles, 0.82); // 82% similarity threshold
 
       if (match) {
         const employee = match.employee.employees;
