@@ -1,14 +1,16 @@
 import { useState, useEffect, useRef } from "react";
-import { Camera, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Camera, CheckCircle, XCircle, Clock, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import FaceRegistration from "@/components/terminal/FaceRegistration";
 
 const Terminal = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [employees, setEmployees] = useState<any[]>([]);
   const [lastCheckIn, setLastCheckIn] = useState<any>(null);
+  const [showRegistration, setShowRegistration] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -129,6 +131,16 @@ const Terminal = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 p-8">
+      {showRegistration && (
+        <FaceRegistration
+          onComplete={() => {
+            setShowRegistration(false);
+            loadEmployees();
+          }}
+          onCancel={() => setShowRegistration(false)}
+        />
+      )}
+      
       <div className="max-w-6xl mx-auto space-y-8">
         <div className="text-center space-y-2">
           <h1 className="text-5xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
@@ -152,24 +164,36 @@ const Terminal = () => {
                 <canvas ref={canvasRef} className="hidden" />
               </div>
               
-              <Button
-                size="lg"
-                onClick={captureAndRecognize}
-                disabled={isProcessing}
-                className="w-full h-16 text-lg font-semibold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg"
-              >
-                {isProcessing ? (
-                  <>
-                    <Clock className="mr-2 h-6 w-6 animate-spin" />
-                    Gesichtserkennung läuft...
-                  </>
-                ) : (
-                  <>
-                    <Camera className="mr-2 h-6 w-6" />
-                    Gesicht scannen
-                  </>
-                )}
-              </Button>
+              <div className="space-y-3">
+                <Button
+                  size="lg"
+                  onClick={captureAndRecognize}
+                  disabled={isProcessing}
+                  className="w-full h-16 text-lg font-semibold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg"
+                >
+                  {isProcessing ? (
+                    <>
+                      <Clock className="mr-2 h-6 w-6 animate-spin" />
+                      Gesichtserkennung läuft...
+                    </>
+                  ) : (
+                    <>
+                      <Camera className="mr-2 h-6 w-6" />
+                      Gesicht scannen
+                    </>
+                  )}
+                </Button>
+                
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={() => setShowRegistration(true)}
+                  className="w-full h-14 text-base font-semibold shadow-md hover:bg-primary/10"
+                >
+                  <UserPlus className="mr-2 h-5 w-5" />
+                  Neu? Gesicht registrieren
+                </Button>
+              </div>
             </div>
 
             <div className="space-y-6">
