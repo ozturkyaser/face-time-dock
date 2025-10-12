@@ -10,51 +10,106 @@ interface AdvancePDFData {
   notes?: string;
   employeeSignature?: string;
   approvedAt?: string;
+  companyName?: string;
+  companyAddress?: string;
+  companyPhone?: string;
+  companyEmail?: string;
+  companyWebsite?: string;
+  companyLogoUrl?: string;
 }
 
 export const generateAdvancePDF = async (data: AdvancePDFData): Promise<Blob> => {
   const doc = new jsPDF();
   
+  let startY = 20;
+
+  // Company Logo and Info
+  if (data.companyLogoUrl || data.companyName) {
+    if (data.companyLogoUrl) {
+      try {
+        doc.addImage(data.companyLogoUrl, "PNG", 20, startY, 40, 20);
+      } catch (error) {
+        console.error("Error adding company logo:", error);
+      }
+    }
+
+    if (data.companyName) {
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text(data.companyName, data.companyLogoUrl ? 70 : 20, startY + 5);
+      
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      let infoY = startY + 10;
+      
+      if (data.companyAddress) {
+        const addressLines = doc.splitTextToSize(data.companyAddress, 80);
+        doc.text(addressLines, data.companyLogoUrl ? 70 : 20, infoY);
+        infoY += addressLines.length * 3;
+      }
+      if (data.companyPhone) {
+        doc.text(`Tel: ${data.companyPhone}`, data.companyLogoUrl ? 70 : 20, infoY);
+        infoY += 3;
+      }
+      if (data.companyEmail) {
+        doc.text(`E-Mail: ${data.companyEmail}`, data.companyLogoUrl ? 70 : 20, infoY);
+        infoY += 3;
+      }
+      if (data.companyWebsite) {
+        doc.text(`Web: ${data.companyWebsite}`, data.companyLogoUrl ? 70 : 20, infoY);
+      }
+    }
+
+    startY += 35;
+    doc.setDrawColor(200, 200, 200);
+    doc.line(20, startY, 190, startY);
+    startY += 10;
+  }
+  
   // Header
   doc.setFontSize(20);
   doc.setFont("helvetica", "bold");
-  doc.text("Gehaltsvorschuss - Quittung", 105, 20, { align: "center" });
+  doc.text("Gehaltsvorschuss - Quittung", 105, startY, { align: "center" });
+  startY += 10;
   
   // Employee Info
   doc.setFontSize(12);
   doc.setFont("helvetica", "normal");
-  doc.text(`Mitarbeiter: ${data.employeeName}`, 20, 40);
-  doc.text(`Personalnummer: ${data.employeeNumber}`, 20, 50);
+  doc.text(`Mitarbeiter: ${data.employeeName}`, 20, startY + 10);
+  doc.text(`Personalnummer: ${data.employeeNumber}`, 20, startY + 20);
   
   // Amount
+  doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
-  doc.text("Betrag:", 20, 65);
+  doc.text("Betrag:", 20, startY + 35);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(16);
-  doc.text(`€ ${data.amount.toFixed(2)}`, 20, 75);
+  doc.text(`€ ${data.amount.toFixed(2)}`, 20, startY + 45);
   
   // Request Date
   doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
-  doc.text("Antragsdatum:", 20, 90);
+  doc.text("Antragsdatum:", 20, startY + 60);
   doc.setFont("helvetica", "normal");
   doc.text(
     format(new Date(data.requestDate), "dd.MM.yyyy", { locale: de }),
     20,
-    100
+    startY + 70
   );
   
   // Notes
+  let notesEndY = startY + 70;
   if (data.notes) {
     doc.setFont("helvetica", "bold");
-    doc.text("Notizen:", 20, 115);
+    doc.text("Notizen:", 20, startY + 85);
     doc.setFont("helvetica", "normal");
     const splitNotes = doc.splitTextToSize(data.notes, 170);
-    doc.text(splitNotes, 20, 125);
+    doc.text(splitNotes, 20, startY + 95);
+    notesEndY = startY + 95 + (splitNotes.length * 5);
   }
   
   // Signature section
-  const sigStartY = data.notes ? 155 : 125;
+  const sigStartY = data.notes ? notesEndY + 20 : startY + 85;
   
   doc.setFont("helvetica", "bold");
   doc.text("Empfangsbestätigung:", 20, sigStartY);

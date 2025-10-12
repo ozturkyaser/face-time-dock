@@ -72,16 +72,27 @@ const VacationManagement = ({ onUpdate }: VacationManagementProps) => {
     }
 
     try {
-      // Get employee details
+      // Get employee details with location
       const { data: employeeData } = await supabase
         .from("employees")
-        .select("employee_number, first_name, last_name")
+        .select("employee_number, first_name, last_name, location_id")
         .eq("id", selectedRequest.employee_id)
         .single();
 
       if (!employeeData) {
         toast.error("Mitarbeiter nicht gefunden");
         return;
+      }
+
+      // Get location CI data if available
+      let locationData = null;
+      if (employeeData.location_id) {
+        const { data } = await supabase
+          .from("locations")
+          .select("company_name, company_address, company_phone, company_email, company_website, company_logo_url")
+          .eq("id", employeeData.location_id)
+          .single();
+        locationData = data;
       }
 
       // Update vacation request
@@ -111,7 +122,13 @@ const VacationManagement = ({ onUpdate }: VacationManagementProps) => {
         notes: selectedRequest.notes,
         employeeSignature: selectedRequest.employee_signature,
         adminSignature: adminSignature,
-        approvedAt: approvedAt
+        approvedAt: approvedAt,
+        companyName: locationData?.company_name,
+        companyAddress: locationData?.company_address,
+        companyPhone: locationData?.company_phone,
+        companyEmail: locationData?.company_email,
+        companyWebsite: locationData?.company_website,
+        companyLogoUrl: locationData?.company_logo_url
       });
 
       // Upload PDF

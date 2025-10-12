@@ -78,10 +78,10 @@ const AdminVacationCreate = ({ onSuccess }: AdminVacationCreateProps) => {
     setIsLoading(true);
 
     try {
-      // Get employee details for PDF
+      // Get employee details with location
       const { data: employeeData } = await supabase
         .from("employees")
-        .select("employee_number, first_name, last_name")
+        .select("employee_number, first_name, last_name, location_id")
         .eq("id", formData.employee_id)
         .single();
 
@@ -89,6 +89,17 @@ const AdminVacationCreate = ({ onSuccess }: AdminVacationCreateProps) => {
         toast.error("Mitarbeiter nicht gefunden");
         setIsLoading(false);
         return;
+      }
+
+      // Get location CI data if available
+      let locationData = null;
+      if (employeeData.location_id) {
+        const { data } = await supabase
+          .from("locations")
+          .select("company_name, company_address, company_phone, company_email, company_website, company_logo_url")
+          .eq("id", employeeData.location_id)
+          .single();
+        locationData = data;
       }
 
       // Create vacation request with admin signature and approved status
@@ -125,7 +136,13 @@ const AdminVacationCreate = ({ onSuccess }: AdminVacationCreateProps) => {
         totalDays: totalDays,
         notes: formData.notes,
         adminSignature: adminSignature,
-        approvedAt: vacationData.approved_at
+        approvedAt: vacationData.approved_at,
+        companyName: locationData?.company_name,
+        companyAddress: locationData?.company_address,
+        companyPhone: locationData?.company_phone,
+        companyEmail: locationData?.company_email,
+        companyWebsite: locationData?.company_website,
+        companyLogoUrl: locationData?.company_logo_url
       });
 
       // Upload PDF to storage

@@ -126,6 +126,12 @@ export type Database = {
       locations: {
         Row: {
           address: string | null
+          company_address: string | null
+          company_email: string | null
+          company_logo_url: string | null
+          company_name: string | null
+          company_phone: string | null
+          company_website: string | null
           created_at: string
           id: string
           name: string
@@ -133,6 +139,12 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          company_address?: string | null
+          company_email?: string | null
+          company_logo_url?: string | null
+          company_name?: string | null
+          company_phone?: string | null
+          company_website?: string | null
           created_at?: string
           id?: string
           name: string
@@ -140,6 +152,12 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          company_address?: string | null
+          company_email?: string | null
+          company_logo_url?: string | null
+          company_name?: string | null
+          company_phone?: string | null
+          company_website?: string | null
           created_at?: string
           id?: string
           name?: string
