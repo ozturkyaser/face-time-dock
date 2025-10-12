@@ -10,6 +10,7 @@ import { TerminalManagement } from "@/components/admin/TerminalManagement";
 import TimeEntriesView from "@/components/admin/TimeEntriesView";
 import VacationManagement from "@/components/admin/VacationManagement";
 import SalaryAdvances from "@/components/admin/SalaryAdvances";
+import ManualTimeTracking from "@/components/admin/ManualTimeTracking";
 
 const Admin = () => {
   const [stats, setStats] = useState({
@@ -156,6 +157,7 @@ const Admin = () => {
           </TabsContent>
 
           <TabsContent value="time" className="space-y-4">
+            <ManualTimeTracking />
             <TimeEntriesView />
           </TabsContent>
 
