@@ -110,13 +110,15 @@ const Terminal = () => {
         return;
       }
 
-      // Find best match - strict threshold for accurate recognition
-      const match = findBestMatch(currentDescriptor, employeesWithFaces, 0.85); // 85% similarity threshold
+      // Very strict threshold - only accept near-perfect matches
+      const match = findBestMatch(currentDescriptor, employeesWithFaces, 0.95); // 95% similarity threshold - must be almost perfect
       
       if (!match) {
-        toast.error("Gesicht nicht erkannt. Bitte versuchen Sie es erneut oder registrieren Sie sich.", {
+        // Show all similarities to user for debugging
+        toast.error("Gesicht nicht erkannt - keine ausreichende Übereinstimmung gefunden.", {
           icon: <XCircle className="h-5 w-5 text-destructive" />,
-          description: "Stellen Sie sicher, dass Sie bereits registriert sind"
+          description: "Es wird eine Übereinstimmung von mindestens 95% benötigt. Bitte versuchen Sie es erneut oder registrieren Sie sich neu.",
+          duration: 5000
         });
         setIsProcessing(false);
         return;

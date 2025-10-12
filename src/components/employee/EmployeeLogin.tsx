@@ -170,8 +170,8 @@ const EmployeeLogin = ({ onLoginSuccess }: EmployeeLoginProps) => {
         return;
       }
 
-      // Strict threshold for accurate recognition
-      const match = findBestMatch(descriptor, compatibleProfiles, 0.82); // 82% similarity threshold
+      // Very strict threshold - only accept near-perfect matches
+      const match = findBestMatch(descriptor, compatibleProfiles, 0.95); // 95% similarity threshold - must be almost perfect
 
       if (match) {
         const employee = match.employee.employees;
@@ -188,8 +188,9 @@ const EmployeeLogin = ({ onLoginSuccess }: EmployeeLoginProps) => {
         onLoginSuccess(employee);
       } else {
         console.log('✗ No match found above threshold');
-        toast.error("Gesicht nicht erkannt. Bitte versuchen Sie es erneut oder verwenden Sie die PIN.", {
-          description: "Stellen Sie sicher, dass Ihr Gesicht gut beleuchtet ist und Sie direkt in die Kamera schauen."
+        toast.error("Gesicht nicht erkannt - keine ausreichende Übereinstimmung gefunden.", {
+          description: "Es wird eine Übereinstimmung von mindestens 95% benötigt. Bitte sorgen Sie für gute Beleuchtung und schauen Sie direkt in die Kamera.",
+          duration: 5000
         });
         setIsRecognizing(false);
       }
