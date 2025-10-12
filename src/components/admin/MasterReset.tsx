@@ -38,49 +38,49 @@ const MasterReset = () => {
       const { error: faceError } = await supabase
         .from("face_profiles")
         .delete()
-        .neq("id", "");
+        .not("id", "is", null);
       if (faceError) throw new Error(`face_profiles: ${faceError.message}`);
       
       // Time entries
       const { error: timeError } = await supabase
         .from("time_entries")
         .delete()
-        .neq("id", "");
+        .not("id", "is", null);
       if (timeError) throw new Error(`time_entries: ${timeError.message}`);
       
       // Vacation requests
       const { error: vacationError } = await supabase
         .from("vacation_requests")
         .delete()
-        .neq("id", "");
+        .not("id", "is", null);
       if (vacationError) throw new Error(`vacation_requests: ${vacationError.message}`);
       
       // Salary advances
       const { error: advanceError } = await supabase
         .from("salary_advances")
         .delete()
-        .neq("id", "");
+        .not("id", "is", null);
       if (advanceError) throw new Error(`salary_advances: ${advanceError.message}`);
       
       // Employees
       const { error: employeeError } = await supabase
         .from("employees")
         .delete()
-        .neq("id", "");
+        .not("id", "is", null);
       if (employeeError) throw new Error(`employees: ${employeeError.message}`);
       
       // Terminals
       const { error: terminalError } = await supabase
         .from("terminals")
         .delete()
-        .neq("id", "");
+        .not("id", "is", null);
       if (terminalError) throw new Error(`terminals: ${terminalError.message}`);
       
       // Locations
       const { error: locationError } = await supabase
         .from("locations")
         .delete()
-        .neq("id", "");
+        .not("id", "is", null);
       if (locationError) throw new Error(`locations: ${locationError.message}`);
 
       toast.success("Alle Daten wurden erfolgreich gelöscht", {
