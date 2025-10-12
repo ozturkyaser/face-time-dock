@@ -3,18 +3,49 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth } from "date-fns";
 import { de } from "date-fns/locale";
-import { Check, X, DollarSign } from "lucide-react";
+import { Check, X, DollarSign, Plus, TrendingUp, TrendingDown } from "lucide-react";
 import { toast } from "sonner";
 
 const SalaryAdvances = () => {
   const [advances, setAdvances] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    employee_id: "",
+    amount: "",
+    notes: ""
+  });
+  const [monthlyStats, setMonthlyStats] = useState({
+    pending: 0,
+    approved: 0
+  });
 
   useEffect(() => {
     loadAdvances();
+    loadEmployees();
   }, []);
+
+  const loadEmployees = async () => {
+    const { data, error } = await supabase
+      .from("employees")
+      .select("id, employee_number, first_name, last_name")
+      .eq("is_active", true)
+      .order("employee_number");
+    
+    if (error) {
+      console.error("Error loading employees:", error);
+      return;
+    }
+    setEmployees(data || []);
+  };
 
   const loadAdvances = async () => {
     const { data, error } = await supabase
@@ -34,6 +65,56 @@ const SalaryAdvances = () => {
       return;
     }
     setAdvances(data || []);
+    calculateMonthlyStats(data || []);
+  };
+
+  const calculateMonthlyStats = (advancesData: any[]) => {
+    const now = new Date();
+    const monthStart = startOfMonth(now);
+    const monthEnd = endOfMonth(now);
+
+    const thisMonthAdvances = advancesData.filter(a => {
+      const date = new Date(a.request_date);
+      return date >= monthStart && date <= monthEnd;
+    });
+
+    const pending = thisMonthAdvances
+      .filter(a => a.status === "pending")
+      .reduce((sum, a) => sum + Number(a.amount), 0);
+
+    const approved = thisMonthAdvances
+      .filter(a => a.status === "approved")
+      .reduce((sum, a) => sum + Number(a.amount), 0);
+
+    setMonthlyStats({ pending, approved });
+  };
+
+  const handleAddAdvance = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!formData.employee_id || !formData.amount) {
+      toast.error("Bitte alle Pflichtfelder ausfüllen");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("salary_advances")
+      .insert({
+        employee_id: formData.employee_id,
+        amount: Number(formData.amount),
+        notes: formData.notes || null
+      });
+
+    if (error) {
+      console.error("Error adding advance:", error);
+      toast.error("Fehler beim Hinzufügen");
+      return;
+    }
+
+    toast.success("Vorschuss hinzugefügt");
+    setIsDialogOpen(false);
+    setFormData({ employee_id: "", amount: "", notes: "" });
+    loadAdvances();
   };
 
   const handleApprove = async (id: string) => {
@@ -103,14 +184,143 @@ const SalaryAdvances = () => {
   };
 
   return (
-    <Card className="shadow-lg">
-      <CardHeader>
-        <CardTitle>Gehaltsvorschüsse</CardTitle>
-        <CardDescription>
-          Vorschussanträge genehmigen und verwalten
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="shadow-lg">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Monat Ausstehend</CardTitle>
+            <TrendingUp className="h-5 w-5 text-warning" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-warning">
+              +{new Intl.NumberFormat("de-DE", {
+                style: "currency",
+                currency: "EUR"
+              }).format(monthlyStats.pending)}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Zu genehmigende Vorschüsse
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-lg">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Monat Offen</CardTitle>
+            <TrendingDown className="h-5 w-5 text-destructive" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-destructive">
+              -{new Intl.NumberFormat("de-DE", {
+                style: "currency",
+                currency: "EUR"
+              }).format(monthlyStats.approved)}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Genehmigt, noch nicht bezahlt
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-lg">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Gesamt Offen</CardTitle>
+            <DollarSign className="h-5 w-5 text-primary" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">
+              {new Intl.NumberFormat("de-DE", {
+                style: "currency",
+                currency: "EUR"
+              }).format(monthlyStats.pending + monthlyStats.approved)}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Gesamtbetrag diesen Monat
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="shadow-lg">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Gehaltsvorschüsse</CardTitle>
+              <CardDescription>
+                Vorschussanträge genehmigen und verwalten
+              </CardDescription>
+            </div>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Vorschuss hinzufügen
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Neuer Vorschuss</DialogTitle>
+                  <DialogDescription>
+                    Einen neuen Gehaltsvorschuss für einen Mitarbeiter hinzufügen
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleAddAdvance} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="employee">Mitarbeiter *</Label>
+                    <Select
+                      value={formData.employee_id}
+                      onValueChange={(value) => setFormData({ ...formData, employee_id: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Mitarbeiter auswählen" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {employees.map((emp) => (
+                          <SelectItem key={emp.id} value={emp.id}>
+                            {emp.employee_number} - {emp.first_name} {emp.last_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="amount">Betrag (€) *</Label>
+                    <Input
+                      id="amount"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="500.00"
+                      value={formData.amount}
+                      onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="notes">Notizen</Label>
+                    <Textarea
+                      id="notes"
+                      placeholder="Optional: Zusätzliche Informationen..."
+                      value={formData.notes}
+                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                      Abbrechen
+                    </Button>
+                    <Button type="submit">
+                      Hinzufügen
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </CardHeader>
+        <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
@@ -191,6 +401,7 @@ const SalaryAdvances = () => {
         </Table>
       </CardContent>
     </Card>
+    </div>
   );
 };
 
