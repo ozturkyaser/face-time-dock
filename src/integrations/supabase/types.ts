@@ -148,9 +148,11 @@ export type Database = {
           approved_by: string | null
           created_at: string | null
           employee_id: string
+          employee_signature: string | null
           id: string
           notes: string | null
           paid_at: string | null
+          pdf_url: string | null
           request_date: string
           status: string
           updated_at: string | null
@@ -161,9 +163,11 @@ export type Database = {
           approved_by?: string | null
           created_at?: string | null
           employee_id: string
+          employee_signature?: string | null
           id?: string
           notes?: string | null
           paid_at?: string | null
+          pdf_url?: string | null
           request_date?: string
           status?: string
           updated_at?: string | null
@@ -174,9 +178,11 @@ export type Database = {
           approved_by?: string | null
           created_at?: string | null
           employee_id?: string
+          employee_signature?: string | null
           id?: string
           notes?: string | null
           paid_at?: string | null
+          pdf_url?: string | null
           request_date?: string
           status?: string
           updated_at?: string | null

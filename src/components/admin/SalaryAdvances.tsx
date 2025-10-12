@@ -11,13 +11,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { de } from "date-fns/locale";
-import { Check, X, DollarSign, Plus, TrendingUp, TrendingDown } from "lucide-react";
+import { Check, X, DollarSign, Plus, TrendingUp, TrendingDown, FileText } from "lucide-react";
 import { toast } from "sonner";
+import SignatureCanvasComponent from "@/components/shared/SignatureCanvas";
+import { generateAdvancePDF } from "@/utils/advancePdfGenerator";
 
 const SalaryAdvances = () => {
   const [advances, setAdvances] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
+  const [selectedAdvance, setSelectedAdvance] = useState<any>(null);
+  const [employeeSignature, setEmployeeSignature] = useState("");
   const [formData, setFormData] = useState({
     employee_id: "",
     amount: "",
@@ -118,21 +123,88 @@ const SalaryAdvances = () => {
   };
 
   const handleApprove = async (id: string) => {
-    const { error } = await supabase
-      .from("salary_advances")
-      .update({
-        status: "approved",
-        approved_at: new Date().toISOString()
-      })
-      .eq("id", id);
-    
-    if (error) {
-      toast.error("Fehler beim Genehmigen");
+    const advance = advances.find(a => a.id === id);
+    if (advance) {
+      setSelectedAdvance(advance);
+      setEmployeeSignature("");
+      setIsApproveDialogOpen(true);
+    }
+  };
+
+  const handleConfirmApprove = async () => {
+    if (!selectedAdvance || !employeeSignature) {
+      toast.error("Bitte Mitarbeiter-Unterschrift leisten");
       return;
     }
-    
-    toast.success("Vorschuss genehmigt");
-    loadAdvances();
+
+    try {
+      // Get employee details
+      const { data: employeeData } = await supabase
+        .from("employees")
+        .select("employee_number, first_name, last_name")
+        .eq("id", selectedAdvance.employee_id)
+        .single();
+
+      if (!employeeData) {
+        toast.error("Mitarbeiter nicht gefunden");
+        return;
+      }
+
+      // Update salary advance
+      const approvedAt = new Date().toISOString();
+      const { error: updateError } = await supabase
+        .from("salary_advances")
+        .update({
+          status: "approved",
+          approved_at: approvedAt,
+          employee_signature: employeeSignature
+        })
+        .eq("id", selectedAdvance.id);
+      
+      if (updateError) {
+        toast.error("Fehler beim Genehmigen");
+        return;
+      }
+
+      // Generate PDF
+      const pdfBlob = await generateAdvancePDF({
+        employeeName: `${employeeData.first_name} ${employeeData.last_name}`,
+        employeeNumber: employeeData.employee_number,
+        amount: selectedAdvance.amount,
+        requestDate: selectedAdvance.request_date,
+        notes: selectedAdvance.notes,
+        employeeSignature: employeeSignature,
+        approvedAt: approvedAt
+      });
+
+      // Upload PDF
+      const fileName = `advance_${selectedAdvance.id}_${Date.now()}.pdf`;
+      const { error: uploadError } = await supabase.storage
+        .from("vacation-pdfs")
+        .upload(fileName, pdfBlob, {
+          contentType: "application/pdf"
+        });
+
+      if (!uploadError) {
+        const { data: { publicUrl } } = supabase.storage
+          .from("vacation-pdfs")
+          .getPublicUrl(fileName);
+
+        await supabase
+          .from("salary_advances")
+          .update({ pdf_url: publicUrl })
+          .eq("id", selectedAdvance.id);
+      }
+
+      toast.success("Vorschuss genehmigt und Quittung erstellt");
+      setIsApproveDialogOpen(false);
+      setSelectedAdvance(null);
+      setEmployeeSignature("");
+      loadAdvances();
+    } catch (error) {
+      console.error("Error approving:", error);
+      toast.error("Fehler beim Genehmigen");
+    }
   };
 
   const handleReject = async (id: string) => {
@@ -329,6 +401,7 @@ const SalaryAdvances = () => {
               <TableHead>Antragsdatum</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Notizen</TableHead>
+              <TableHead>PDF</TableHead>
               <TableHead className="text-right">Aktionen</TableHead>
             </TableRow>
           </TableHeader>
@@ -359,6 +432,21 @@ const SalaryAdvances = () => {
                 <TableCell>{getStatusBadge(advance.status)}</TableCell>
                 <TableCell className="max-w-xs truncate">
                   {advance.notes || "-"}
+                </TableCell>
+                <TableCell>
+                  {advance.pdf_url && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1"
+                      asChild
+                    >
+                      <a href={advance.pdf_url} target="_blank" rel="noopener noreferrer">
+                        <FileText className="h-4 w-4" />
+                        PDF
+                      </a>
+                    </Button>
+                  )}
                 </TableCell>
                 <TableCell className="text-right">
                   {advance.status === "pending" && (
@@ -400,7 +488,60 @@ const SalaryAdvances = () => {
           </TableBody>
         </Table>
       </CardContent>
-    </Card>
+      </Card>
+
+      {/* Approval Dialog with Signature */}
+      <Dialog open={isApproveDialogOpen} onOpenChange={setIsApproveDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Vorschuss genehmigen</DialogTitle>
+            <DialogDescription>
+              Mitarbeiter-Unterschrift für Empfangsbestätigung erforderlich
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedAdvance && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <p><strong>Mitarbeiter:</strong> {selectedAdvance.employees?.first_name} {selectedAdvance.employees?.last_name}</p>
+                <p><strong>Betrag:</strong> {new Intl.NumberFormat("de-DE", {
+                  style: "currency",
+                  currency: "EUR"
+                }).format(selectedAdvance.amount)}</p>
+              </div>
+
+              <div className="space-y-2">
+                <SignatureCanvasComponent
+                  onSave={setEmployeeSignature}
+                  label="Mitarbeiter-Unterschrift (Empfangsbestätigung)"
+                />
+                {employeeSignature && (
+                  <p className="text-sm text-success">✓ Unterschrift erfasst</p>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsApproveDialogOpen(false);
+                    setSelectedAdvance(null);
+                    setEmployeeSignature("");
+                  }}
+                >
+                  Abbrechen
+                </Button>
+                <Button
+                  onClick={handleConfirmApprove}
+                  disabled={!employeeSignature}
+                >
+                  Genehmigen und Quittung erstellen
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
