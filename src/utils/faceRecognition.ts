@@ -18,10 +18,10 @@ export const initializeFaceRecognition = async () => {
     // Load OpenCV for face detection
     await loadOpenCV();
     
-    // Using MobileNetV4 for better browser compatibility and availability
+    // Using Resnet-50 with better feature extraction for faces
     featureExtractor = await pipeline(
       'image-feature-extraction',
-      'onnx-community/mobilenetv4_conv_small.e2400_r224_in1k'
+      'Xenova/resnet-50'
     );
     console.log('Face recognition model loaded successfully');
     return featureExtractor;
@@ -40,7 +40,7 @@ export const extractFaceDescriptor = async (canvas: HTMLCanvasElement): Promise<
 
     console.log('Extracting face descriptor from canvas...');
     
-    // Prepare canvas for model input
+    // Prepare canvas for model input - ResNet uses 224x224
     const targetSize = 224;
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = targetSize;
@@ -48,11 +48,13 @@ export const extractFaceDescriptor = async (canvas: HTMLCanvasElement): Promise<
     const tempCtx = tempCanvas.getContext('2d');
     if (!tempCtx) throw new Error('Could not get canvas context');
     
-    // Draw and resize image
+    // Draw and resize image with better quality
+    tempCtx.imageSmoothingEnabled = true;
+    tempCtx.imageSmoothingQuality = 'high';
     tempCtx.drawImage(canvas, 0, 0, targetSize, targetSize);
     
-    // Convert to base64 URL for the model
-    const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.95);
+    // Convert to base64 URL for the model with high quality
+    const dataUrl = tempCanvas.toDataURL('image/jpeg', 1.0);
     
     console.log('Processing image with ML model...');
     
@@ -108,27 +110,24 @@ export const calculateSimilarity = (desc1: number[], desc2: number[]): number =>
     return 0;
   }
 
+  // Normalize descriptors first for better comparison
+  const normalize = (desc: number[]) => {
+    const magnitude = Math.sqrt(desc.reduce((sum, val) => sum + val * val, 0));
+    return magnitude === 0 ? desc : desc.map(val => val / magnitude);
+  };
+
+  const norm1 = normalize(desc1);
+  const norm2 = normalize(desc2);
+
+  // Calculate cosine similarity
   let dotProduct = 0;
-  let norm1 = 0;
-  let norm2 = 0;
-
-  for (let i = 0; i < desc1.length; i++) {
-    dotProduct += desc1[i] * desc2[i];
-    norm1 += desc1[i] * desc1[i];
-    norm2 += desc2[i] * desc2[i];
+  for (let i = 0; i < norm1.length; i++) {
+    dotProduct += norm1[i] * norm2[i];
   }
 
-  norm1 = Math.sqrt(norm1);
-  norm2 = Math.sqrt(norm2);
-
-  console.log('Similarity calculation - Norms:', { norm1: norm1.toFixed(4), norm2: norm2.toFixed(4) });
-
-  if (norm1 === 0 || norm2 === 0) {
-    console.warn('Zero norm detected!');
-    return 0;
-  }
-
-  const similarity = dotProduct / (norm1 * norm2);
+  // Clamp to [-1, 1] range to handle floating point errors
+  const similarity = Math.max(-1, Math.min(1, dotProduct));
+  
   console.log('Calculated similarity:', similarity.toFixed(4));
   return similarity;
 };
@@ -258,7 +257,8 @@ export const detectFace = (canvas: HTMLCanvasElement): boolean => {
       console.log('Face region variance:', variance);
       
       // If variance is too low, the face might be covered
-      isValidFace = variance > 20;
+      // Increased threshold for stricter face validation
+      isValidFace = variance > 30;
       
       faceROI.delete();
       mean.delete();
