@@ -170,8 +170,8 @@ const EmployeeLogin = ({ onLoginSuccess }: EmployeeLoginProps) => {
         return;
       }
 
-      // Very strict threshold - only accept near-perfect matches
-      const match = findBestMatch(descriptor, compatibleProfiles, 0.95); // 95% similarity threshold - must be almost perfect
+      // Strict threshold - 90% similarity required
+      const match = findBestMatch(descriptor, compatibleProfiles, 0.90); // 90% similarity threshold
 
       if (match) {
         const employee = match.employee.employees;

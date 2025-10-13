@@ -116,8 +116,8 @@ const VacationRequest = ({ onComplete, onCancel }: VacationRequestProps) => {
         return;
       }
 
-      // Find best match
-      const match = findBestMatch(currentDescriptor, employeesWithFaces, 0.65);
+      // Find best match with 90% similarity threshold
+      const match = findBestMatch(currentDescriptor, employeesWithFaces, 0.90);
       
       if (!match) {
         toast.error("Gesicht nicht erkannt. Bitte versuchen Sie es erneut.", {

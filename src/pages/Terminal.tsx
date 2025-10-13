@@ -158,14 +158,14 @@ const Terminal = () => {
         return;
       }
 
-      // Very strict threshold - only accept near-perfect matches
-      const match = findBestMatch(currentDescriptor, employeesWithFaces, 0.95); // 95% similarity threshold - must be almost perfect
+      // Strict threshold - 90% similarity required
+      const match = findBestMatch(currentDescriptor, employeesWithFaces, 0.90); // 90% similarity threshold
       
       if (!match) {
         // Show all similarities to user for debugging
         toast.error("Gesicht nicht erkannt - keine ausreichende Übereinstimmung gefunden.", {
           icon: <XCircle className="h-5 w-5 text-destructive" />,
-          description: "Es wird eine Übereinstimmung von mindestens 95% benötigt. Bitte versuchen Sie es erneut oder registrieren Sie sich neu.",
+          description: "Es wird eine Übereinstimmung von mindestens 90% benötigt. Bitte versuchen Sie es erneut oder registrieren Sie sich neu.",
           duration: 5000
         });
         setIsProcessing(false);
