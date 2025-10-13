@@ -35,6 +35,8 @@ export type Database = {
           position: string | null
           salary: number | null
           updated_at: string | null
+          vacation_days_total: number | null
+          vacation_days_used: number | null
         }
         Insert: {
           created_at?: string | null
@@ -56,6 +58,8 @@ export type Database = {
           position?: string | null
           salary?: number | null
           updated_at?: string | null
+          vacation_days_total?: number | null
+          vacation_days_used?: number | null
         }
         Update: {
           created_at?: string | null
@@ -77,6 +81,8 @@ export type Database = {
           position?: string | null
           salary?: number | null
           updated_at?: string | null
+          vacation_days_total?: number | null
+          vacation_days_used?: number | null
         }
         Relationships: [
           {

@@ -19,6 +19,7 @@ interface VacationPDFData {
   companyEmail?: string;
   companyWebsite?: string;
   companyLogoUrl?: string;
+  remainingVacationDays?: number;
 }
 
 export const generateVacationPDF = async (data: VacationPDFData): Promise<Blob> => {
@@ -112,8 +113,15 @@ export const generateVacationPDF = async (data: VacationPDFData): Promise<Blob> 
   );
   doc.text(`Anzahl Tage: ${data.totalDays}`, 20, startY + 75);
   
+  // Remaining vacation days
+  if (data.remainingVacationDays !== undefined) {
+    doc.setFont("helvetica", "bold");
+    doc.text(`Verbleibende Urlaubstage: ${data.remainingVacationDays}`, 20, startY + 85);
+    doc.setFont("helvetica", "normal");
+  }
+  
   // Notes
-  let notesEndY = startY + 75;
+  let notesEndY = data.remainingVacationDays !== undefined ? startY + 85 : startY + 75;
   if (data.notes) {
     doc.setFont("helvetica", "bold");
     doc.text("Notizen:", 20, startY + 90);

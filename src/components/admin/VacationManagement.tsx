@@ -75,7 +75,7 @@ const VacationManagement = ({ onUpdate }: VacationManagementProps) => {
       // Get employee details with location
       const { data: employeeData } = await supabase
         .from("employees")
-        .select("employee_number, first_name, last_name, location_id")
+        .select("employee_number, first_name, last_name, location_id, vacation_days_total, vacation_days_used")
         .eq("id", selectedRequest.employee_id)
         .single();
 
@@ -111,6 +111,11 @@ const VacationManagement = ({ onUpdate }: VacationManagementProps) => {
         return;
       }
 
+      // Calculate remaining vacation days
+      const vacationDaysTotal = employeeData.vacation_days_total || 30;
+      const vacationDaysUsed = employeeData.vacation_days_used || 0;
+      const remainingVacationDays = vacationDaysTotal - vacationDaysUsed - selectedRequest.total_days;
+
       // Generate PDF
       const pdfBlob = await generateVacationPDF({
         employeeName: `${employeeData.first_name} ${employeeData.last_name}`,
@@ -128,7 +133,8 @@ const VacationManagement = ({ onUpdate }: VacationManagementProps) => {
         companyPhone: locationData?.company_phone,
         companyEmail: locationData?.company_email,
         companyWebsite: locationData?.company_website,
-        companyLogoUrl: locationData?.company_logo_url
+        companyLogoUrl: locationData?.company_logo_url,
+        remainingVacationDays: remainingVacationDays
       });
 
       // Upload PDF

@@ -40,7 +40,7 @@ const EmployeeVacations = ({ employeeId }: EmployeeVacationsProps) => {
       // Get employee data
       const { data: employee } = await supabase
         .from("employees")
-        .select("first_name, last_name, employee_number")
+        .select("first_name, last_name, employee_number, location_id, vacation_days_total, vacation_days_used")
         .eq("id", vacation.employee_id)
         .single();
 
@@ -71,6 +71,22 @@ const EmployeeVacations = ({ employeeId }: EmployeeVacationsProps) => {
         return;
       }
 
+      // Get location CI data if available
+      let locationData = null;
+      if (employee.location_id) {
+        const { data } = await supabase
+          .from("locations")
+          .select("company_name, company_address, company_phone, company_email, company_website, company_logo_url")
+          .eq("id", employee.location_id)
+          .single();
+        locationData = data;
+      }
+
+      // Calculate remaining vacation days
+      const vacationDaysTotal = employee.vacation_days_total || 30;
+      const vacationDaysUsed = employee.vacation_days_used || 0;
+      const remainingVacationDays = vacationDaysTotal - vacationDaysUsed - vacation.alternative_total_days;
+
       // Generate PDF
       const pdfBlob = await generateVacationPDF({
         employeeName: `${employee.first_name} ${employee.last_name}`,
@@ -82,7 +98,14 @@ const EmployeeVacations = ({ employeeId }: EmployeeVacationsProps) => {
         notes: vacation.notes || "",
         employeeSignature: vacation.employee_signature,
         adminSignature: vacation.admin_signature,
-        approvedAt: new Date().toISOString()
+        approvedAt: new Date().toISOString(),
+        companyName: locationData?.company_name,
+        companyAddress: locationData?.company_address,
+        companyPhone: locationData?.company_phone,
+        companyEmail: locationData?.company_email,
+        companyWebsite: locationData?.company_website,
+        companyLogoUrl: locationData?.company_logo_url,
+        remainingVacationDays: remainingVacationDays
       });
 
       // Upload PDF to storage
