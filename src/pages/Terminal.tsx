@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { Camera, CheckCircle, XCircle, Clock, UserPlus, CalendarDays, AlertCircle, LogOut, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import FaceRegistration from "@/components/terminal/FaceRegistration";
@@ -24,6 +26,9 @@ const Terminal = () => {
     longitude: number | null;
     geofence_radius_meters: number | null;
   } | null>(null);
+  const [authMethod, setAuthMethod] = useState<'pin' | 'face' | null>(null);
+  const [selectedEmployee, setSelectedEmployee] = useState<string>("");
+  const [pin, setPin] = useState("");
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -31,14 +36,16 @@ const Terminal = () => {
   useEffect(() => {
     if (isLoggedIn && terminalLocation) {
       loadEmployees();
-      startCamera();
+      if (authMethod === 'face') {
+        startCamera();
+      }
     }
     return () => {
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
     };
-  }, [isLoggedIn, terminalLocation]);
+  }, [isLoggedIn, terminalLocation, authMethod]);
 
   const loadEmployees = async () => {
     if (!terminalLocation) return;
@@ -69,6 +76,85 @@ const Terminal = () => {
       console.error("Error accessing camera:", error);
       toast.error("Kamerazugriff fehlgeschlagen");
     }
+  };
+
+  const handlePinLogin = async () => {
+    if (!selectedEmployee || !pin) {
+      toast.error("Bitte wählen Sie einen Mitarbeiter und geben Sie Ihre PIN ein");
+      return;
+    }
+
+    setIsProcessing(true);
+
+    // First check geofencing if configured
+    if (terminalLocation?.latitude && terminalLocation?.longitude) {
+      try {
+        const geofenceResult = await checkGeofence(
+          terminalLocation.latitude,
+          terminalLocation.longitude,
+          terminalLocation.geofence_radius_meters
+        );
+
+        if (!geofenceResult.allowed) {
+          const distanceMsg = geofenceResult.distance
+            ? ` Sie sind ${formatDistance(geofenceResult.distance)} vom Standort entfernt.`
+            : "";
+          
+          toast.error("Standortprüfung fehlgeschlagen", {
+            icon: <MapPin className="h-5 w-5 text-destructive" />,
+            description: geofenceResult.error || `Sie befinden sich außerhalb des erlaubten Bereichs.${distanceMsg}`,
+            duration: 5000
+          });
+          setIsProcessing(false);
+          return;
+        }
+      } catch (error) {
+        console.error("Geofence error:", error);
+        toast.error("Standortprüfung fehlgeschlagen", {
+          description: "Bitte aktivieren Sie die Standortfreigabe in Ihrem Browser",
+          duration: 5000
+        });
+        setIsProcessing(false);
+        return;
+      }
+    }
+
+    try {
+      // Find employee
+      const employee = employees.find(e => e.id === selectedEmployee);
+      if (!employee) {
+        toast.error("Mitarbeiter nicht gefunden");
+        setIsProcessing(false);
+        return;
+      }
+
+      // Verify PIN using bcrypt comparison via edge function
+      const { data: pinData, error: pinError } = await supabase.functions.invoke('verify-pin', {
+        body: { 
+          employeeId: selectedEmployee,
+          pin: pin
+        }
+      });
+
+      if (pinError || !pinData?.valid) {
+        toast.error("Ungültige PIN", {
+          icon: <XCircle className="h-5 w-5 text-destructive" />,
+          description: "Bitte überprüfen Sie Ihre PIN und versuchen Sie es erneut"
+        });
+        setPin("");
+        setIsProcessing(false);
+        return;
+      }
+
+      await handleCheckInOut(employee);
+      setPin("");
+      setSelectedEmployee("");
+    } catch (error) {
+      console.error("Error during PIN authentication:", error);
+      toast.error("Fehler bei der Anmeldung. Bitte versuchen Sie es erneut.");
+    }
+    
+    setIsProcessing(false);
   };
 
   const captureAndRecognize = async () => {
@@ -255,6 +341,9 @@ const Terminal = () => {
     setTerminalLocation(null);
     setEmployees([]);
     setLastCheckIn(null);
+    setAuthMethod(null);
+    setSelectedEmployee("");
+    setPin("");
     if (stream) {
       stream.getTracks().forEach(track => track.stop());
     }
@@ -265,6 +354,189 @@ const Terminal = () => {
     return <TerminalLogin onLoginSuccess={handleLoginSuccess} />;
   }
 
+  // Show authentication method selection
+  if (!authMethod) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 p-8">
+        <div className="max-w-4xl mx-auto space-y-8">
+          <div className="text-center space-y-2">
+            <h1 className="text-5xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              Zeiterfassung Terminal
+            </h1>
+            <p className="text-xl text-muted-foreground">
+              Standort: {terminalLocation?.name}
+            </p>
+            <p className="text-lg text-muted-foreground">
+              Wählen Sie Ihre Authentifizierungsmethode
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6">
+            <Card 
+              className="p-8 cursor-pointer hover:shadow-xl transition-shadow border-2 hover:border-primary"
+              onClick={() => setAuthMethod('pin')}
+            >
+              <div className="text-center space-y-4">
+                <div className="mx-auto w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
+                  <UserPlus className="h-10 w-10 text-primary" />
+                </div>
+                <h2 className="text-2xl font-bold">PIN-Login</h2>
+                <p className="text-muted-foreground">
+                  Wählen Sie Ihren Namen aus und geben Sie Ihre PIN ein
+                </p>
+              </div>
+            </Card>
+
+            <Card 
+              className="p-8 cursor-pointer hover:shadow-xl transition-shadow border-2 hover:border-primary"
+              onClick={() => setAuthMethod('face')}
+            >
+              <div className="text-center space-y-4">
+                <div className="mx-auto w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Camera className="h-10 w-10 text-primary" />
+                </div>
+                <h2 className="text-2xl font-bold">Gesichtserkennung</h2>
+                <p className="text-muted-foreground">
+                  Authentifizierung mittels Gesichtserkennung
+                </p>
+              </div>
+            </Card>
+          </div>
+
+          <div className="text-center">
+            <Button
+              variant="outline"
+              onClick={handleLogout}
+              className="shadow-md"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Zurück
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // PIN Authentication View
+  if (authMethod === 'pin') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 p-8">
+        <div className="max-w-2xl mx-auto space-y-8">
+          <div className="text-center space-y-2">
+            <h1 className="text-5xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              PIN-Login
+            </h1>
+            <p className="text-xl text-muted-foreground">
+              Standort: {terminalLocation?.name}
+            </p>
+          </div>
+
+          <Card className="p-8 shadow-xl">
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Mitarbeiter auswählen</label>
+                <Select value={selectedEmployee} onValueChange={setSelectedEmployee} disabled={isProcessing}>
+                  <SelectTrigger className="w-full h-12 text-base">
+                    <SelectValue placeholder="Bitte wählen Sie..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {employees.map((emp) => (
+                      <SelectItem key={emp.id} value={emp.id}>
+                        {emp.first_name} {emp.last_name} ({emp.employee_number})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">PIN eingeben</label>
+                <Input
+                  type="password"
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value)}
+                  className="w-full h-12 text-center text-2xl tracking-widest"
+                  placeholder="••••"
+                  maxLength={4}
+                  disabled={isProcessing}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      handlePinLogin();
+                    }
+                  }}
+                />
+              </div>
+
+              <Button
+                size="lg"
+                onClick={handlePinLogin}
+                disabled={isProcessing || !selectedEmployee || !pin}
+                className="w-full h-16 text-lg font-semibold"
+              >
+                {isProcessing ? (
+                  <>
+                    <Clock className="mr-2 h-6 w-6 animate-spin" />
+                    Wird verarbeitet...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="mr-2 h-6 w-6" />
+                    Ein-/Ausstempeln
+                  </>
+                )}
+              </Button>
+
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setAuthMethod(null)}
+                  className="flex-1"
+                  disabled={isProcessing}
+                >
+                  Zurück
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowVacationRequest(true)}
+                  className="flex-1"
+                  disabled={isProcessing}
+                >
+                  <CalendarDays className="mr-2 h-5 w-5" />
+                  Urlaubsantrag
+                </Button>
+              </div>
+
+              {lastCheckIn && (
+                <Card className="p-6 bg-gradient-to-br from-card to-card/50 mt-6">
+                  <div className="flex items-center gap-4">
+                    {lastCheckIn.type === "in" ? (
+                      <CheckCircle className="h-12 w-12 text-success" />
+                    ) : (
+                      <XCircle className="h-12 w-12 text-destructive" />
+                    )}
+                    <div>
+                      <p className="text-2xl font-bold">
+                        {lastCheckIn.first_name} {lastCheckIn.last_name}
+                      </p>
+                      <p className="text-muted-foreground">
+                        {lastCheckIn.type === "in" ? "Eingestempelt" : "Ausgestempelt"}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {new Date().toLocaleTimeString("de-DE")}
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+              )}
+            </div>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Face Recognition View
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 p-8">
       {showRegistration && (
@@ -433,7 +705,15 @@ const Terminal = () => {
           </div>
         </Card>
 
-        <div className="text-center">
+        <div className="text-center space-x-4">
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={() => setAuthMethod(null)}
+            className="shadow-md"
+          >
+            Methode wechseln
+          </Button>
           <Button
             variant="outline"
             size="lg"

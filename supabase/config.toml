@@ -68,3 +68,6 @@ verify_jwt = false
 
 [functions.face-recognition]
 verify_jwt = false
+
+[functions.verify-pin]
+verify_jwt = false
