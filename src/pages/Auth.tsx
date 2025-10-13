@@ -19,15 +19,36 @@ const Auth = () => {
 
   useEffect(() => {
     // Check if user is already logged in
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate("/admin");
+        // Check if user has roles before redirecting
+        const { data: roles } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", session.user.id);
+        
+        if (roles && roles.length > 0) {
+          navigate("/admin");
+        }
       }
-    });
+    };
+
+    checkSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session) {
-        navigate("/admin");
+      if (event === 'SIGNED_IN' && session) {
+        // Defer Supabase calls with setTimeout to avoid deadlocks
+        setTimeout(async () => {
+          const { data: roles } = await supabase
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", session.user.id);
+          
+          if (roles && roles.length > 0) {
+            navigate("/admin");
+          }
+        }, 0);
       }
     });
 
