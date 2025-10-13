@@ -1,4 +1,5 @@
 import { pipeline, env } from '@huggingface/transformers';
+import { loadOpenCV } from './opencvLoader';
 
 // Configure transformers to download from HuggingFace CDN
 env.allowLocalModels = false;
@@ -14,6 +15,9 @@ export const initializeFaceRecognition = async () => {
   
   try {
     console.log('Loading face recognition model from HuggingFace...');
+    // Load OpenCV for face detection
+    await loadOpenCV();
+    
     // Using MobileNetV4 for better browser compatibility and availability
     featureExtractor = await pipeline(
       'image-feature-extraction',
@@ -207,8 +211,76 @@ export const findBestMatch = (
   return null;
 };
 
-// Check if face is detected in the frame
+// Check if face is detected in the frame using OpenCV
 export const detectFace = (canvas: HTMLCanvasElement): boolean => {
+  try {
+    if (!window.cv) {
+      console.error('OpenCV not loaded, using fallback detection');
+      return fallbackFaceDetection(canvas);
+    }
+
+    const cv = window.cv;
+    
+    // Convert canvas to OpenCV Mat
+    const src = cv.imread(canvas);
+    const gray = new cv.Mat();
+    
+    // Convert to grayscale
+    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+    
+    // Load the Haar Cascade classifier for face detection
+    const faceCascade = new cv.CascadeClassifier();
+    faceCascade.load('haarcascade_frontalface_default.xml');
+    
+    // Detect faces
+    const faces = new cv.RectVector();
+    const msize = new cv.Size(0, 0);
+    
+    faceCascade.detectMultiScale(gray, faces, 1.1, 3, 0, msize, msize);
+    
+    const faceCount = faces.size();
+    console.log('OpenCV detected faces:', faceCount);
+    
+    // Check if exactly one face is detected
+    let isValidFace = faceCount === 1;
+    
+    if (isValidFace) {
+      // Additional validation: Check if enough facial features are visible
+      const face = faces.get(0);
+      const faceROI = gray.roi(face);
+      
+      // Calculate the variance in the face region
+      const mean = new cv.Mat();
+      const stddev = new cv.Mat();
+      cv.meanStdDev(faceROI, mean, stddev);
+      
+      const variance = stddev.doubleAt(0, 0);
+      console.log('Face region variance:', variance);
+      
+      // If variance is too low, the face might be covered
+      isValidFace = variance > 20;
+      
+      faceROI.delete();
+      mean.delete();
+      stddev.delete();
+    }
+    
+    // Cleanup
+    src.delete();
+    gray.delete();
+    faces.delete();
+    faceCascade.delete();
+    
+    console.log('Valid face detected:', isValidFace);
+    return isValidFace;
+  } catch (error) {
+    console.error('Error in OpenCV face detection:', error);
+    return fallbackFaceDetection(canvas);
+  }
+};
+
+// Fallback detection when OpenCV is not available
+const fallbackFaceDetection = (canvas: HTMLCanvasElement): boolean => {
   const ctx = canvas.getContext('2d');
   if (!ctx) return false;
 
@@ -240,10 +312,10 @@ export const detectFace = (canvas: HTMLCanvasElement): boolean => {
   // Check if there's sufficient variation (not all black, all white, or solid color)
   // and reasonable brightness
   const hasGoodBrightness = avgBrightness > 30 && avgBrightness < 220;
-  const hasVariation = stdDev > 20; // Requires meaningful variation in the image
+  const hasVariation = stdDev > 20;
   const hasFace = hasGoodBrightness && hasVariation;
   
-  console.log('Face detection check:');
+  console.log('Fallback face detection check:');
   console.log('- Average brightness:', avgBrightness.toFixed(2));
   console.log('- Standard deviation:', stdDev.toFixed(2));
   console.log('- Has face:', hasFace);
