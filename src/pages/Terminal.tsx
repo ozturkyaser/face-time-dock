@@ -141,39 +141,36 @@ const Terminal = () => {
     }
 
     try {
-      // Extract face descriptor from current frame
-      console.log('Extracting face descriptor...');
-      const currentDescriptor = await extractFaceDescriptor(canvas);
+      // Convert canvas to base64 for API
+      const imageData = canvas.toDataURL('image/jpeg', 0.95);
       
-      // Get all employees with face profiles (1000 dimensions only)
-      const employeesWithFaces = employees.filter(e => {
-        if (!e.face_profiles) return false;
-        const faceDesc = e.face_profiles.face_descriptor as any;
-        return faceDesc?.descriptor?.length === 1000;
+      console.log('Calling backend face recognition...');
+      const { data, error } = await supabase.functions.invoke('face-recognition', {
+        body: { 
+          imageData,
+          locationId: terminalLocation.id 
+        }
       });
-      
-      if (employeesWithFaces.length === 0) {
-        toast.error("Keine registrierten Gesichter gefunden. Bitte registrieren Sie sich zuerst.");
+
+      if (error) {
+        console.error('Face recognition error:', error);
+        toast.error("Fehler bei der Gesichtserkennung. Bitte versuchen Sie es erneut.");
         setIsProcessing(false);
         return;
       }
 
-      // Strict threshold - 90% similarity required
-      const match = findBestMatch(currentDescriptor, employeesWithFaces, 0.90); // 90% similarity threshold
-      
-      if (!match) {
-        // Show all similarities to user for debugging
-        toast.error("Gesicht nicht erkannt - keine ausreichende Übereinstimmung gefunden.", {
+      if (!data.matched) {
+        toast.error("Gesicht nicht erkannt", {
           icon: <XCircle className="h-5 w-5 text-destructive" />,
-          description: "Es wird eine Übereinstimmung von mindestens 90% benötigt. Bitte versuchen Sie es erneut oder registrieren Sie sich neu.",
+          description: data.message || "Keine ausreichende Übereinstimmung gefunden.",
           duration: 5000
         });
         setIsProcessing(false);
         return;
       }
 
-      const { employee, similarity } = match;
-      console.log(`Recognized: ${employee.first_name} ${employee.last_name} (${(similarity * 100).toFixed(1)}% match)`);
+      const employee = data.employee;
+      console.log(`Recognized: ${employee.first_name} ${employee.last_name}`);
       
       await handleCheckInOut(employee);
     } catch (error) {
