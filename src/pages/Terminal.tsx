@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Camera, CheckCircle, XCircle, Clock, UserPlus, CalendarDays, AlertCircle, LogOut } from "lucide-react";
+import { Camera, CheckCircle, XCircle, Clock, UserPlus, CalendarDays, AlertCircle, LogOut, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,6 +8,7 @@ import FaceRegistration from "@/components/terminal/FaceRegistration";
 import VacationRequest from "@/components/terminal/VacationRequest";
 import { TerminalLogin } from "@/components/terminal/TerminalLogin";
 import { extractFaceDescriptor, findBestMatch, detectFace } from "@/utils/faceRecognition";
+import { checkGeofence, formatDistance } from "@/utils/geolocation";
 
 const Terminal = () => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -16,7 +17,13 @@ const Terminal = () => {
   const [showRegistration, setShowRegistration] = useState(false);
   const [showVacationRequest, setShowVacationRequest] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [terminalLocation, setTerminalLocation] = useState<{id: string, name: string} | null>(null);
+  const [terminalLocation, setTerminalLocation] = useState<{
+    id: string;
+    name: string;
+    latitude: number | null;
+    longitude: number | null;
+    geofence_radius_meters: number | null;
+  } | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -70,6 +77,47 @@ const Terminal = () => {
     setIsProcessing(true);
     const canvas = canvasRef.current;
     const video = videoRef.current;
+    
+    // First check geofencing if configured
+    if (terminalLocation?.latitude && terminalLocation?.longitude) {
+      try {
+        const geofenceResult = await checkGeofence(
+          terminalLocation.latitude,
+          terminalLocation.longitude,
+          terminalLocation.geofence_radius_meters
+        );
+
+        if (!geofenceResult.allowed) {
+          const distanceMsg = geofenceResult.distance
+            ? ` Sie sind ${formatDistance(geofenceResult.distance)} vom Standort entfernt.`
+            : "";
+          
+          toast.error("Standortprüfung fehlgeschlagen", {
+            icon: <MapPin className="h-5 w-5 text-destructive" />,
+            description: geofenceResult.error || `Sie befinden sich außerhalb des erlaubten Bereichs.${distanceMsg}`,
+            duration: 5000
+          });
+          setIsProcessing(false);
+          return;
+        }
+
+        // Show success message if within geofence
+        if (geofenceResult.distance !== undefined) {
+          toast.success(`Standort bestätigt (${formatDistance(geofenceResult.distance)} entfernt)`, {
+            icon: <MapPin className="h-5 w-5 text-success" />,
+            duration: 2000
+          });
+        }
+      } catch (error) {
+        console.error("Geofence error:", error);
+        toast.error("Standortprüfung fehlgeschlagen", {
+          description: "Bitte aktivieren Sie die Standortfreigabe in Ihrem Browser",
+          duration: 5000
+        });
+        setIsProcessing(false);
+        return;
+      }
+    }
     
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
@@ -183,8 +231,25 @@ const Terminal = () => {
     }
   };
 
-  const handleLoginSuccess = (terminalId: string, locationId: string, locationName: string) => {
-    setTerminalLocation({ id: locationId, name: locationName });
+  const handleLoginSuccess = async (terminalId: string, locationId: string, locationName: string) => {
+    // Load location details including geofencing data
+    const { data: locationData } = await supabase
+      .from("locations")
+      .select("id, name, latitude, longitude, geofence_radius_meters")
+      .eq("id", locationId)
+      .single();
+
+    if (locationData) {
+      setTerminalLocation(locationData);
+    } else {
+      setTerminalLocation({ 
+        id: locationId, 
+        name: locationName,
+        latitude: null,
+        longitude: null,
+        geofence_radius_meters: null
+      });
+    }
     setIsLoggedIn(true);
   };
 

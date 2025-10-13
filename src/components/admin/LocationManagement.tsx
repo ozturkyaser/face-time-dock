@@ -32,6 +32,9 @@ interface Location {
   company_email: string | null;
   company_logo_url: string | null;
   company_website: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  geofence_radius_meters: number | null;
 }
 
 export const LocationManagement = ({ onUpdate }: { onUpdate?: () => void }) => {
@@ -47,6 +50,9 @@ export const LocationManagement = ({ onUpdate }: { onUpdate?: () => void }) => {
   const [companyWebsite, setCompanyWebsite] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState("");
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
+  const [geofenceRadius, setGeofenceRadius] = useState("100");
 
   useEffect(() => {
     loadLocations();
@@ -98,7 +104,10 @@ export const LocationManagement = ({ onUpdate }: { onUpdate?: () => void }) => {
       company_phone: companyPhone || null,
       company_email: companyEmail || null,
       company_website: companyWebsite || null,
-      company_logo_url: logoUrl
+      company_logo_url: logoUrl,
+      latitude: latitude ? parseFloat(latitude) : null,
+      longitude: longitude ? parseFloat(longitude) : null,
+      geofence_radius_meters: geofenceRadius ? parseInt(geofenceRadius) : null
     };
 
     if (editingLocation) {
@@ -136,6 +145,9 @@ export const LocationManagement = ({ onUpdate }: { onUpdate?: () => void }) => {
     setCompanyWebsite("");
     setLogoFile(null);
     setLogoPreview("");
+    setLatitude("");
+    setLongitude("");
+    setGeofenceRadius("100");
     setEditingLocation(null);
     loadLocations();
     onUpdate?.();
@@ -151,6 +163,9 @@ export const LocationManagement = ({ onUpdate }: { onUpdate?: () => void }) => {
     setCompanyEmail(location.company_email || "");
     setCompanyWebsite(location.company_website || "");
     setLogoPreview(location.company_logo_url || "");
+    setLatitude(location.latitude?.toString() || "");
+    setLongitude(location.longitude?.toString() || "");
+    setGeofenceRadius(location.geofence_radius_meters?.toString() || "100");
     setOpen(true);
   };
 
@@ -186,6 +201,9 @@ export const LocationManagement = ({ onUpdate }: { onUpdate?: () => void }) => {
               setCompanyWebsite("");
               setLogoFile(null);
               setLogoPreview("");
+              setLatitude("");
+              setLongitude("");
+              setGeofenceRadius("100");
             }}>
               <Plus className="h-4 w-4 mr-2" />
               Neuer Standort
@@ -216,6 +234,64 @@ export const LocationManagement = ({ onUpdate }: { onUpdate?: () => void }) => {
                     onChange={(e) => setAddress(e.target.value)}
                     rows={2}
                   />
+                </div>
+
+                <div className="pt-4 border-t">
+                  <h3 className="font-semibold mb-3">Geofencing Einstellungen</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Definieren Sie einen Standort und Radius für die Zugangskontrolle
+                  </p>
+                  
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label htmlFor="latitude">Breitengrad (Latitude)</Label>
+                        <Input
+                          id="latitude"
+                          type="number"
+                          step="0.000001"
+                          value={latitude}
+                          onChange={(e) => setLatitude(e.target.value)}
+                          placeholder="z.B. 52.520008"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="longitude">Längengrad (Longitude)</Label>
+                        <Input
+                          id="longitude"
+                          type="number"
+                          step="0.000001"
+                          value={longitude}
+                          onChange={(e) => setLongitude(e.target.value)}
+                          placeholder="z.B. 13.404954"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="geofence_radius">Erlaubter Radius (Meter)</Label>
+                      <Input
+                        id="geofence_radius"
+                        type="number"
+                        min="10"
+                        step="10"
+                        value={geofenceRadius}
+                        onChange={(e) => setGeofenceRadius(e.target.value)}
+                        placeholder="100"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Benutzer können sich nur innerhalb dieses Radius registrieren
+                      </p>
+                    </div>
+
+                    <div className="bg-muted/50 p-3 rounded text-sm">
+                      <p className="font-medium mb-1">💡 Hinweis:</p>
+                      <p className="text-muted-foreground">
+                        Lassen Sie die GPS-Felder leer, um Geofencing zu deaktivieren.
+                        Sie können GPS-Koordinaten z.B. bei Google Maps ermitteln.
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="pt-4 border-t">
@@ -322,6 +398,7 @@ export const LocationManagement = ({ onUpdate }: { onUpdate?: () => void }) => {
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Adresse</TableHead>
+              <TableHead>Geofencing</TableHead>
               <TableHead className="w-[100px]">Aktionen</TableHead>
             </TableRow>
           </TableHeader>
@@ -330,6 +407,18 @@ export const LocationManagement = ({ onUpdate }: { onUpdate?: () => void }) => {
               <TableRow key={location.id}>
                 <TableCell className="font-medium">{location.name}</TableCell>
                 <TableCell>{location.address || "-"}</TableCell>
+                <TableCell>
+                  {location.latitude && location.longitude ? (
+                    <div className="text-sm">
+                      <span className="text-success">✓ Aktiv</span>
+                      <span className="text-muted-foreground ml-1">
+                        ({location.geofence_radius_meters}m)
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground text-sm">Deaktiviert</span>
+                  )}
+                </TableCell>
                 <TableCell>
                   <div className="flex gap-2">
                     <Button
