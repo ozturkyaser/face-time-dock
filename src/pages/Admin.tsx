@@ -33,29 +33,56 @@ const Admin = () => {
   }, []);
 
   const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session) {
+    try {
+      console.log('Checking auth...');
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Session error:', sessionError);
+        navigate("/auth");
+        return;
+      }
+      
+      if (!session) {
+        console.log('No session found');
+        navigate("/auth");
+        return;
+      }
+
+      console.log('Session found, loading user roles for:', session.user.id);
+      
+      // Load user roles
+      const { data: roles, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", session.user.id);
+
+      console.log('Roles query result:', { roles, rolesError });
+
+      if (rolesError) {
+        console.error('Error loading roles:', rolesError);
+        navigate("/auth");
+        return;
+      }
+
+      const userRolesList = roles?.map(r => r.role) || [];
+      setUserRoles(userRolesList);
+      console.log('User roles:', userRolesList);
+      
+      if (userRolesList.length === 0) {
+        console.log('No roles found for user');
+        navigate("/auth");
+        return;
+      }
+
+      console.log('Auth check complete');
+      setLoading(false);
+      loadStats();
+    } catch (error) {
+      console.error('Unexpected error in checkAuth:', error);
+      setLoading(false);
       navigate("/auth");
-      return;
     }
-
-    // Load user roles
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", session.user.id);
-
-    const userRolesList = roles?.map(r => r.role) || [];
-    setUserRoles(userRolesList);
-    
-    if (userRolesList.length === 0) {
-      navigate("/auth");
-      return;
-    }
-
-    setLoading(false);
-    loadStats();
   };
 
   const handleLogout = async () => {
