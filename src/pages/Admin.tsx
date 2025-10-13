@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { Users, Clock, Calendar, DollarSign, LayoutDashboard, Camera, Trash2 } from "lucide-react";
+import { Users, Clock, Calendar, DollarSign, LayoutDashboard, Camera, Trash2, ShieldCheck, LogOut } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 import EmployeeManagement from "@/components/admin/EmployeeManagement";
 import { LocationManagement } from "@/components/admin/LocationManagement";
 import { TerminalManagement } from "@/components/admin/TerminalManagement";
@@ -14,18 +15,53 @@ import ManualTimeTracking from "@/components/admin/ManualTimeTracking";
 import FaceProfileManagement from "@/components/admin/FaceProfileManagement";
 import MasterReset from "@/components/admin/MasterReset";
 import EmployeeTimeDetails from "@/components/admin/EmployeeTimeDetails";
+import UserManagement from "@/components/admin/UserManagement";
 
 const Admin = () => {
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalEmployees: 0,
     activeEmployees: 0,
     todayEntries: 0,
     pendingVacations: 0
   });
+  const [userRoles, setUserRoles] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadStats();
+    checkAuth();
   }, []);
+
+  const checkAuth = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
+      navigate("/auth");
+      return;
+    }
+
+    // Load user roles
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", session.user.id);
+
+    const userRolesList = roles?.map(r => r.role) || [];
+    setUserRoles(userRolesList);
+    
+    if (userRolesList.length === 0) {
+      navigate("/auth");
+      return;
+    }
+
+    setLoading(false);
+    loadStats();
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/auth");
+  };
 
   const loadStats = async () => {
     const [employeesRes, entriesRes, vacationsRes] = await Promise.all([
@@ -44,6 +80,13 @@ const Admin = () => {
     });
   };
 
+  if (loading) {
+    return <div className="flex justify-center items-center min-h-screen">Laden...</div>;
+  }
+
+  const isAdmin = userRoles.includes("admin");
+  const isManager = userRoles.includes("manager");
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
       <div className="container mx-auto p-8 space-y-8">
@@ -56,13 +99,23 @@ const Admin = () => {
               Verwaltung und Übersicht des Zeiterfassungssystems
             </p>
           </div>
-          <Button
-            variant="outline"
-            onClick={() => window.location.href = "/"}
-            className="shadow-md"
-          >
-            Zum Terminal
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => window.location.href = "/"}
+              className="shadow-md"
+            >
+              Zum Terminal
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleLogout}
+              className="shadow-md"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Abmelden
+            </Button>
+          </div>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -120,7 +173,7 @@ const Admin = () => {
         </div>
 
         <Tabs defaultValue="employees" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-8 h-auto p-1">
+          <TabsList className={`grid w-full h-auto p-1 ${isAdmin ? 'grid-cols-9' : 'grid-cols-7'}`}>
             <TabsTrigger value="employees" className="flex flex-col gap-1 py-3">
               <Users className="h-5 w-5" />
               <span className="text-xs sm:text-sm">Mitarbeiter</span>
@@ -149,10 +202,18 @@ const Admin = () => {
               <DollarSign className="h-5 w-5" />
               <span className="text-xs sm:text-sm">Vorschüsse</span>
             </TabsTrigger>
-            <TabsTrigger value="danger" className="flex flex-col gap-1 py-3 text-destructive">
-              <Trash2 className="h-5 w-5" />
-              <span className="text-xs sm:text-sm">Danger</span>
-            </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="users" className="flex flex-col gap-1 py-3">
+                <ShieldCheck className="h-5 w-5" />
+                <span className="text-xs sm:text-sm">Benutzer</span>
+              </TabsTrigger>
+            )}
+            {isAdmin && (
+              <TabsTrigger value="danger" className="flex flex-col gap-1 py-3 text-destructive">
+                <Trash2 className="h-5 w-5" />
+                <span className="text-xs sm:text-sm">Danger</span>
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="employees" className="space-y-4">
@@ -185,9 +246,17 @@ const Admin = () => {
             <SalaryAdvances />
           </TabsContent>
 
-          <TabsContent value="danger" className="space-y-4">
-            <MasterReset />
-          </TabsContent>
+          {isAdmin && (
+            <TabsContent value="users" className="space-y-4">
+              <UserManagement />
+            </TabsContent>
+          )}
+
+          {isAdmin && (
+            <TabsContent value="danger" className="space-y-4">
+              <MasterReset />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </div>
