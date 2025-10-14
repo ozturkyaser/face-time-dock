@@ -3,17 +3,30 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { format, differenceInMinutes, subDays, subMonths, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
 import { de } from "date-fns/locale";
-import { Download, Calendar } from "lucide-react";
+import { Download, Calendar, Edit } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
 
 const TimeEntriesView = () => {
   const [entries, setEntries] = useState<any[]>([]);
   const [timeFilter, setTimeFilter] = useState<string>("month");
   const [employees, setEmployees] = useState<any[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<string>("all");
+  const [editingEntry, setEditingEntry] = useState<any>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    check_in_date: "",
+    check_in_time: "",
+    check_out_date: "",
+    check_out_time: "",
+    break_duration_minutes: "0"
+  });
 
   useEffect(() => {
     loadEmployees();
@@ -144,6 +157,50 @@ const TimeEntriesView = () => {
     }
   };
 
+  const handleEditEntry = (entry: any) => {
+    setEditingEntry(entry);
+    const checkIn = new Date(entry.check_in);
+    const checkOut = entry.check_out ? new Date(entry.check_out) : null;
+    
+    setEditFormData({
+      check_in_date: format(checkIn, "yyyy-MM-dd"),
+      check_in_time: format(checkIn, "HH:mm"),
+      check_out_date: checkOut ? format(checkOut, "yyyy-MM-dd") : "",
+      check_out_time: checkOut ? format(checkOut, "HH:mm") : "",
+      break_duration_minutes: (entry.break_duration_minutes || 0).toString()
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingEntry) return;
+
+    const checkInDateTime = new Date(`${editFormData.check_in_date}T${editFormData.check_in_time}`);
+    const checkOutDateTime = editFormData.check_out_date && editFormData.check_out_time
+      ? new Date(`${editFormData.check_out_date}T${editFormData.check_out_time}`)
+      : null;
+
+    const { error } = await supabase
+      .from("time_entries")
+      .update({
+        check_in: checkInDateTime.toISOString(),
+        check_out: checkOutDateTime?.toISOString() || null,
+        break_duration_minutes: parseInt(editFormData.break_duration_minutes)
+      })
+      .eq("id", editingEntry.id);
+
+    if (error) {
+      toast.error("Fehler beim Aktualisieren");
+      console.error(error);
+      return;
+    }
+
+    toast.success("Zeiteintrag aktualisiert");
+    setEditDialogOpen(false);
+    setEditingEntry(null);
+    loadEntries();
+  };
+
   const exportToCSV = () => {
     const csvHeaders = [
       "Mitarbeiternummer",
@@ -252,8 +309,10 @@ const TimeEntriesView = () => {
               <TableHead>Mitarbeiter</TableHead>
               <TableHead>Check-in</TableHead>
               <TableHead>Check-out</TableHead>
+              <TableHead>Pause</TableHead>
               <TableHead>Dauer</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Aktionen</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -284,6 +343,9 @@ const TimeEntriesView = () => {
                   )}
                 </TableCell>
                 <TableCell>
+                  {entry.break_duration_minutes || 0} min
+                </TableCell>
+                <TableCell>
                   {calculateDuration(entry.check_in, entry.check_out)}
                 </TableCell>
                 <TableCell>
@@ -296,6 +358,15 @@ const TimeEntriesView = () => {
                       Aktiv
                     </Badge>
                   )}
+                </TableCell>
+                <TableCell>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleEditEntry(entry)}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
                 </TableCell>
               </TableRow>
             ))}
@@ -319,6 +390,76 @@ const TimeEntriesView = () => {
           </div>
         )}
       </CardContent>
+
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Zeiteintrag bearbeiten</DialogTitle>
+            <DialogDescription>
+              An- und Abmeldezeiten sowie Pausenzeit korrigieren
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="check_in_date">Check-in Datum</Label>
+                <Input
+                  id="check_in_date"
+                  type="date"
+                  value={editFormData.check_in_date}
+                  onChange={(e) => setEditFormData({ ...editFormData, check_in_date: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="check_in_time">Check-in Uhrzeit</Label>
+                <Input
+                  id="check_in_time"
+                  type="time"
+                  value={editFormData.check_in_time}
+                  onChange={(e) => setEditFormData({ ...editFormData, check_in_time: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="check_out_date">Check-out Datum</Label>
+                <Input
+                  id="check_out_date"
+                  type="date"
+                  value={editFormData.check_out_date}
+                  onChange={(e) => setEditFormData({ ...editFormData, check_out_date: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="check_out_time">Check-out Uhrzeit</Label>
+                <Input
+                  id="check_out_time"
+                  type="time"
+                  value={editFormData.check_out_time}
+                  onChange={(e) => setEditFormData({ ...editFormData, check_out_time: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="break_duration">Pausenzeit (Minuten)</Label>
+              <Input
+                id="break_duration"
+                type="number"
+                value={editFormData.break_duration_minutes}
+                onChange={(e) => setEditFormData({ ...editFormData, break_duration_minutes: e.target.value })}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+                Abbrechen
+              </Button>
+              <Button onClick={handleSaveEdit}>
+                Speichern
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
