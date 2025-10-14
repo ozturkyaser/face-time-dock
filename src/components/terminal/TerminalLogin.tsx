@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Lock } from "lucide-react";
+import { checkGeofence, formatDistance } from "@/utils/geolocation";
 
 interface TerminalLoginProps {
   onLoginSuccess: (terminalId: string, locationId: string, locationName: string) => void;
@@ -33,7 +34,15 @@ export const TerminalLogin = ({ onLoginSuccess }: TerminalLoginProps) => {
 
       const { data, error } = await supabase
         .from("terminals")
-        .select("*, locations(name)")
+        .select(`
+          *,
+          locations(
+            name,
+            latitude,
+            longitude,
+            geofence_radius_meters
+          )
+        `)
         .eq("username", username)
         .eq("password_hash", passwordHash)
         .eq("is_active", true)
@@ -41,6 +50,27 @@ export const TerminalLogin = ({ onLoginSuccess }: TerminalLoginProps) => {
 
       if (error || !data) {
         toast.error("Ungültige Anmeldedaten");
+        setIsLoading(false);
+        return;
+      }
+
+      // Check geofencing before allowing login
+      const geofenceResult = await checkGeofence(
+        data.locations.latitude,
+        data.locations.longitude,
+        data.locations.geofence_radius_meters
+      );
+
+      if (!geofenceResult.allowed) {
+        if (geofenceResult.error) {
+          toast.error(`Standortfehler: ${geofenceResult.error}`);
+        } else if (geofenceResult.distance) {
+          toast.error(
+            `Zugriff verweigert: Sie befinden sich ${formatDistance(geofenceResult.distance)} vom Terminal-Standort entfernt. Dieses Terminal kann nur am Standort "${data.locations.name}" verwendet werden.`
+          );
+        } else {
+          toast.error("Zugriff verweigert: Sie befinden sich nicht am richtigen Standort");
+        }
         setIsLoading(false);
         return;
       }
