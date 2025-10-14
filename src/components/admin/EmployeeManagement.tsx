@@ -76,8 +76,8 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
     const employeeData: any = {
       employee_number: formData.employee_number,
       first_name: formData.first_name,
-      last_name: formData.last_name,
-      email: formData.email,
+      last_name: formData.last_name || null,
+      email: formData.email || null,
       phone: formData.phone || null,
       department: formData.department || null,
       position: formData.position || null,
@@ -274,13 +274,12 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email *</Label>
+                    <Label htmlFor="email">Email</Label>
                     <Input
                       id="email"
                       type="email"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      required
                     />
                   </div>
                 </div>
@@ -295,12 +294,11 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="last_name">Nachname *</Label>
+                    <Label htmlFor="last_name">Nachname</Label>
                     <Input
                       id="last_name"
                       value={formData.last_name}
                       onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                      required
                     />
                   </div>
                 </div>

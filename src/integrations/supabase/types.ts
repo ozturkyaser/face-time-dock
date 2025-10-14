@@ -19,7 +19,7 @@ export type Database = {
           created_at: string | null
           default_break_minutes: number | null
           department: string | null
-          email: string
+          email: string | null
           employee_number: string
           employment_end_date: string | null
           employment_start_date: string
@@ -28,7 +28,7 @@ export type Database = {
           hourly_rate: number | null
           id: string
           is_active: boolean | null
-          last_name: string
+          last_name: string | null
           location_id: string | null
           phone: string | null
           pin_hash: string | null
@@ -42,7 +42,7 @@ export type Database = {
           created_at?: string | null
           default_break_minutes?: number | null
           department?: string | null
-          email: string
+          email?: string | null
           employee_number: string
           employment_end_date?: string | null
           employment_start_date?: string
@@ -51,7 +51,7 @@ export type Database = {
           hourly_rate?: number | null
           id?: string
           is_active?: boolean | null
-          last_name: string
+          last_name?: string | null
           location_id?: string | null
           phone?: string | null
           pin_hash?: string | null
@@ -65,7 +65,7 @@ export type Database = {
           created_at?: string | null
           default_break_minutes?: number | null
           department?: string | null
-          email?: string
+          email?: string | null
           employee_number?: string
           employment_end_date?: string | null
           employment_start_date?: string
@@ -74,7 +74,7 @@ export type Database = {
           hourly_rate?: number | null
           id?: string
           is_active?: boolean | null
-          last_name?: string
+          last_name?: string | null
           location_id?: string | null
           phone?: string | null
           pin_hash?: string | null
