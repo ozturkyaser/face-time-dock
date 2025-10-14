@@ -1,11 +1,33 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
-import * as bcrypt from "https://deno.land/x/bcrypt@v0.2.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Hash function using native crypto
+async function hashPassword(password: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const passwordData = encoder.encode(password);
+  
+  // Combine salt and password
+  const combined = new Uint8Array(salt.length + passwordData.length);
+  combined.set(salt);
+  combined.set(passwordData, salt.length);
+  
+  // Hash with SHA-256
+  const hashBuffer = await crypto.subtle.digest('SHA-256', combined);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const saltArray = Array.from(salt);
+  
+  // Store salt:hash
+  const saltHex = saltArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  
+  return `${saltHex}:${hashHex}`;
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -51,9 +73,8 @@ serve(async (req) => {
       );
     }
 
-    // Hash PIN with bcrypt
-    const salt = await bcrypt.genSalt(10);
-    const pinHash = await bcrypt.hash(pin, salt);
+    // Hash PIN
+    const pinHash = await hashPassword(pin);
     console.log('PIN hashed successfully');
 
     // Update employee with new PIN hash

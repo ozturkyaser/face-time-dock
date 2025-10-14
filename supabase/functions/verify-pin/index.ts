@@ -1,11 +1,41 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
-import * as bcrypt from "https://deno.land/x/bcrypt@v0.2.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Verify function using native crypto
+async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
+  try {
+    const [saltHex, hashHex] = storedHash.split(':');
+    
+    if (!saltHex || !hashHex) {
+      // Legacy SHA-256 hash without salt - reject it
+      return false;
+    }
+    
+    const encoder = new TextEncoder();
+    const salt = new Uint8Array(saltHex.match(/.{2}/g)!.map(byte => parseInt(byte, 16)));
+    const passwordData = encoder.encode(password);
+    
+    // Combine salt and password
+    const combined = new Uint8Array(salt.length + passwordData.length);
+    combined.set(salt);
+    combined.set(passwordData, salt.length);
+    
+    // Hash with SHA-256
+    const hashBuffer = await crypto.subtle.digest('SHA-256', combined);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const computedHashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    
+    return computedHashHex === hashHex;
+  } catch (error) {
+    console.error('Error verifying password:', error);
+    return false;
+  }
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -59,8 +89,8 @@ serve(async (req) => {
       );
     }
 
-    // Verify PIN using bcrypt
-    const isValid = await bcrypt.compare(pin, employee.pin_hash);
+    // Verify PIN
+    const isValid = await verifyPassword(pin, employee.pin_hash);
     console.log('PIN verification result:', isValid);
 
     return new Response(
