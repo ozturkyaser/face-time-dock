@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, Camera } from "lucide-react";
+import { Plus, Edit, Trash2, Camera, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import FaceReRegistration from "./FaceReRegistration";
+import EmployeeDetailView from "./EmployeeDetailView";
 
 interface EmployeeManagementProps {
   onUpdate?: () => void;
@@ -22,6 +23,7 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
   const [editingEmployee, setEditingEmployee] = useState<any>(null);
   const [showFaceRegistration, setShowFaceRegistration] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
+  const [showEmployeeDetails, setShowEmployeeDetails] = useState(false);
   const [locations, setLocations] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     employee_number: "",
@@ -33,7 +35,6 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
     position: "",
     location_id: "",
     hourly_rate: "",
-    salary: "",
     pin: "",
     default_break_minutes: "45",
     expected_daily_hours: "8.00"
@@ -83,7 +84,6 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
       position: formData.position || null,
       location_id: formData.location_id || null,
       hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : null,
-      salary: formData.salary ? parseFloat(formData.salary) : null,
       default_break_minutes: formData.default_break_minutes ? parseInt(formData.default_break_minutes) : 45,
       expected_daily_hours: formData.expected_daily_hours ? parseFloat(formData.expected_daily_hours) : 8.00
     };
@@ -156,7 +156,6 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
       position: "",
       location_id: "",
       hourly_rate: "",
-      salary: "",
       pin: "",
       default_break_minutes: "45",
       expected_daily_hours: "8.00"
@@ -177,7 +176,6 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
       position: employee.position || "",
       location_id: employee.location_id || "",
       hourly_rate: employee.hourly_rate?.toString() || "",
-      salary: employee.salary?.toString() || "",
       pin: "",
       default_break_minutes: employee.default_break_minutes?.toString() || "45",
       expected_daily_hours: employee.expected_daily_hours?.toString() || "8.00"
@@ -218,6 +216,28 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
     setSelectedEmployee(employee);
     setShowFaceRegistration(true);
   };
+
+  const handleViewDetails = (employee: any) => {
+    setSelectedEmployee(employee);
+    setShowEmployeeDetails(true);
+  };
+
+  if (showEmployeeDetails && selectedEmployee) {
+    return (
+      <div className="space-y-4">
+        <Button
+          variant="outline"
+          onClick={() => {
+            setShowEmployeeDetails(false);
+            setSelectedEmployee(null);
+          }}
+        >
+          Zurück zur Mitarbeiterverwaltung
+        </Button>
+        <EmployeeDetailView employeeId={selectedEmployee.id} employeeName={`${selectedEmployee.first_name} ${selectedEmployee.last_name}`} />
+      </div>
+    );
+  }
 
   return (
     <>
@@ -343,27 +363,15 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="hourly_rate">Stundenlohn (€)</Label>
-                    <Input
-                      id="hourly_rate"
-                      type="number"
-                      step="0.01"
-                      value={formData.hourly_rate}
-                      onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="salary">Gehalt (€)</Label>
-                    <Input
-                      id="salary"
-                      type="number"
-                      step="0.01"
-                      value={formData.salary}
-                      onChange={(e) => setFormData({ ...formData, salary: e.target.value })}
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="hourly_rate">Stundenlohn (€)</Label>
+                  <Input
+                    id="hourly_rate"
+                    type="number"
+                    step="0.01"
+                    value={formData.hourly_rate}
+                    onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value })}
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -465,6 +473,14 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleViewDetails(employee)}
+                      title="Mitarbeiterdetails anzeigen"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="sm"

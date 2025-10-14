@@ -47,7 +47,7 @@ const EmployeePortal = () => {
           </Button>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-4">
+        <div className="grid gap-6 md:grid-cols-3">
           <Card className="shadow-lg hover:shadow-xl transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Mitarbeiter</CardTitle>
@@ -72,25 +72,6 @@ const EmployeePortal = () => {
               </div>
               <p className="text-xs text-muted-foreground">
                 Ihre Abteilung
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-lg hover:shadow-xl transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Stundensatz</CardTitle>
-              <DollarSign className="h-5 w-5 text-warning" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {employee.hourly_rate ? 
-                  new Intl.NumberFormat("de-DE", {
-                    style: "currency",
-                    currency: "EUR"
-                  }).format(employee.hourly_rate) : "-"}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Pro Stunde
               </p>
             </CardContent>
           </Card>

@@ -68,8 +68,8 @@ Deno.serve(async (req) => {
           check_out: checkoutTime.toISOString(),
           break_duration_minutes: defaultBreak,
           notes: entry.notes 
-            ? `${entry.notes} (Auto-Checkout um 20:00 Uhr)` 
-            : 'Auto-Checkout um 20:00 Uhr'
+            ? `${entry.notes} (Automatische System-Abmeldung um 20:00 Uhr)` 
+            : 'Automatische System-Abmeldung um 20:00 Uhr'
         })
         .eq('id', entry.id)
 
