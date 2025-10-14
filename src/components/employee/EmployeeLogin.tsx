@@ -57,14 +57,6 @@ const EmployeeLogin = ({ onLoginSuccess }: EmployeeLoginProps) => {
     }
   };
 
-  const hashPin = async (pin: string): Promise<string> => {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(pin);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  };
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -76,24 +68,36 @@ const EmployeeLogin = ({ onLoginSuccess }: EmployeeLoginProps) => {
     setIsLoading(true);
 
     try {
-      const pinHash = await hashPin(pin);
-
-      const { data, error } = await supabase
+      // First get employee by number
+      const { data: employee, error: employeeError } = await supabase
         .from("employees")
         .select("*")
         .eq("employee_number", employeeNumber)
-        .eq("pin_hash", pinHash)
         .eq("is_active", true)
         .maybeSingle();
 
-      if (error || !data) {
+      if (employeeError || !employee) {
         toast.error("Ungültige Mitarbeiternummer oder PIN");
         setIsLoading(false);
         return;
       }
 
-      toast.success(`Willkommen ${data.first_name}!`);
-      onLoginSuccess(data);
+      // Verify PIN using edge function
+      const { data: pinData, error: pinError } = await supabase.functions.invoke('verify-pin', {
+        body: { 
+          employeeId: employee.id,
+          pin: pin
+        }
+      });
+
+      if (pinError || !pinData?.valid) {
+        toast.error("Ungültige PIN");
+        setIsLoading(false);
+        return;
+      }
+
+      toast.success(`Willkommen ${employee.first_name}!`);
+      onLoginSuccess(employee);
     } catch (error) {
       console.error("Login error:", error);
       toast.error("Fehler beim Anmelden");

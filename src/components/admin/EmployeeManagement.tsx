@@ -88,16 +88,6 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
       expected_daily_hours: formData.expected_daily_hours ? parseFloat(formData.expected_daily_hours) : 8.00
     };
 
-    // Hash PIN if provided
-    if (formData.pin) {
-      const encoder = new TextEncoder();
-      const data = encoder.encode(formData.pin);
-      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-      employeeData.pin_hash = hashHex;
-    }
-
     if (editingEmployee) {
       const { error } = await supabase
         .from("employees")
@@ -108,16 +98,49 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
         toast.error("Fehler beim Aktualisieren");
         return;
       }
+
+      // Update PIN separately if provided
+      if (formData.pin) {
+        const { error: pinError } = await supabase.functions.invoke('set-employee-pin', {
+          body: { 
+            employeeId: editingEmployee.id,
+            pin: formData.pin
+          }
+        });
+
+        if (pinError) {
+          toast.error("Fehler beim Setzen der PIN");
+          return;
+        }
+      }
       toast.success("Mitarbeiter aktualisiert");
     } else {
-      const { error } = await supabase
+      const { data: newEmployee, error } = await supabase
         .from("employees")
-        .insert(employeeData);
+        .insert(employeeData)
+        .select()
+        .single();
       
       if (error) {
         toast.error("Fehler beim Erstellen");
         return;
       }
+
+      // Set PIN separately if provided
+      if (formData.pin && newEmployee) {
+        const { error: pinError } = await supabase.functions.invoke('set-employee-pin', {
+          body: { 
+            employeeId: newEmployee.id,
+            pin: formData.pin
+          }
+        });
+
+        if (pinError) {
+          toast.error("Fehler beim Setzen der PIN");
+          return;
+        }
+      }
+      
       toast.success("Mitarbeiter erstellt");
     }
 
