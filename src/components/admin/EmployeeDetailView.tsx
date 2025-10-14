@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { format, differenceInMinutes, startOfMonth, endOfMonth } from "date-fns";
 import { de } from "date-fns/locale";
-import { Calendar, Edit } from "lucide-react";
+import { Calendar, Edit, Umbrella, Euro } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
@@ -33,6 +34,8 @@ interface Employee {
 const EmployeeDetailView = ({ employeeId, employeeName }: EmployeeDetailViewProps) => {
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [entries, setEntries] = useState<any[]>([]);
+  const [vacations, setVacations] = useState<any[]>([]);
+  const [advances, setAdvances] = useState<any[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), "yyyy-MM"));
   const [totalMinutes, setTotalMinutes] = useState<number>(0);
   const [editingEntry, setEditingEntry] = useState<any>(null);
@@ -47,6 +50,8 @@ const EmployeeDetailView = ({ employeeId, employeeName }: EmployeeDetailViewProp
 
   useEffect(() => {
     loadEmployee();
+    loadVacations();
+    loadAdvances();
   }, [employeeId]);
 
   useEffect(() => {
@@ -67,6 +72,34 @@ const EmployeeDetailView = ({ employeeId, employeeName }: EmployeeDetailViewProp
       return;
     }
     setEmployee(data);
+  };
+
+  const loadVacations = async () => {
+    const { data, error } = await supabase
+      .from("vacation_requests")
+      .select("*")
+      .eq("employee_id", employeeId)
+      .order("created_at", { ascending: false });
+    
+    if (error) {
+      console.error("Error loading vacations:", error);
+      return;
+    }
+    setVacations(data || []);
+  };
+
+  const loadAdvances = async () => {
+    const { data, error } = await supabase
+      .from("salary_advances")
+      .select("*")
+      .eq("employee_id", employeeId)
+      .order("request_date", { ascending: false });
+    
+    if (error) {
+      console.error("Error loading advances:", error);
+      return;
+    }
+    setAdvances(data || []);
   };
 
   const loadEmployeeEntries = async () => {
@@ -199,6 +232,28 @@ const EmployeeDetailView = ({ employeeId, employeeName }: EmployeeDetailViewProp
     return <div>Lade Mitarbeiterdaten...</div>;
   }
 
+  const getVacationStatusBadge = (status: string) => {
+    const badges: Record<string, { className: string; label: string }> = {
+      pending: { className: "bg-warning/10 text-warning border-warning/20", label: "Ausstehend" },
+      approved: { className: "bg-success/10 text-success border-success/20", label: "Genehmigt" },
+      rejected: { className: "bg-destructive/10 text-destructive border-destructive/20", label: "Abgelehnt" },
+      alternative_proposed: { className: "bg-primary/10 text-primary border-primary/20", label: "Alternativvorschlag" }
+    };
+    const badge = badges[status] || badges.pending;
+    return <Badge variant="outline" className={badge.className}>{badge.label}</Badge>;
+  };
+
+  const getAdvanceStatusBadge = (status: string) => {
+    const badges: Record<string, { className: string; label: string }> = {
+      pending: { className: "bg-warning/10 text-warning border-warning/20", label: "Ausstehend" },
+      approved: { className: "bg-success/10 text-success border-success/20", label: "Genehmigt" },
+      rejected: { className: "bg-destructive/10 text-destructive border-destructive/20", label: "Abgelehnt" },
+      paid: { className: "bg-primary/10 text-primary border-primary/20", label: "Ausgezahlt" }
+    };
+    const badge = badges[status] || badges.pending;
+    return <Badge variant="outline" className={badge.className}>{badge.label}</Badge>;
+  };
+
   return (
     <>
       <Card className="shadow-lg">
@@ -212,26 +267,34 @@ const EmployeeDetailView = ({ employeeId, employeeName }: EmployeeDetailViewProp
                 {employee.employee_number} • {employee.position}
               </CardDescription>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {monthOptions.map((month) => (
-                      <SelectItem key={month} value={month}>
-                        {format(new Date(month + "-01"), "MMMM yyyy", { locale: de })}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
           </div>
         </CardHeader>
         <CardContent>
+          <Tabs defaultValue="time" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="time">Zeiterfassung</TabsTrigger>
+              <TabsTrigger value="vacation">Urlaub</TabsTrigger>
+              <TabsTrigger value="advances">Vorschüsse</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="time" className="space-y-4">
+              <div className="flex items-center justify-end">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {monthOptions.map((month) => (
+                        <SelectItem key={month} value={month}>
+                          {format(new Date(month + "-01"), "MMMM yyyy", { locale: de })}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
           <div className="mb-6 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
@@ -295,72 +358,166 @@ const EmployeeDetailView = ({ employeeId, employeeName }: EmployeeDetailViewProp
             )}
           </div>
 
-          {entries.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Keine Zeiterfassungen für diesen Monat vorhanden
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Datum</TableHead>
-                  <TableHead>Check-in</TableHead>
-                  <TableHead>Check-out</TableHead>
-                  <TableHead>Pause</TableHead>
-                  <TableHead>Dauer</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Aktionen</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {entries.map((entry) => (
-                  <TableRow key={entry.id}>
-                    <TableCell className="font-medium">
-                      {format(new Date(entry.check_in), "dd.MM.yyyy", { locale: de })}
-                    </TableCell>
-                    <TableCell>
-                      {format(new Date(entry.check_in), "HH:mm", { locale: de })}
-                    </TableCell>
-                    <TableCell>
-                      {entry.check_out ? (
-                        format(new Date(entry.check_out), "HH:mm", { locale: de })
-                      ) : (
-                        <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
-                          Nicht ausgestempelt
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {entry.break_duration_minutes || 0} min
-                    </TableCell>
-                    <TableCell className="font-semibold">
-                      {calculateDuration(entry.check_in, entry.check_out)}
-                    </TableCell>
-                    <TableCell>
-                      {entry.check_out ? (
-                        <Badge variant="outline" className="bg-success/10 text-success border-success/20">
-                          Abgeschlossen
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20">
-                          Aktiv
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditEntry(entry)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+              {entries.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Keine Zeiterfassungen für diesen Monat vorhanden
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Datum</TableHead>
+                      <TableHead>Check-in</TableHead>
+                      <TableHead>Check-out</TableHead>
+                      <TableHead>Pause</TableHead>
+                      <TableHead>Dauer</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Aktionen</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {entries.map((entry) => (
+                      <TableRow key={entry.id}>
+                        <TableCell className="font-medium">
+                          {format(new Date(entry.check_in), "dd.MM.yyyy", { locale: de })}
+                        </TableCell>
+                        <TableCell>
+                          {format(new Date(entry.check_in), "HH:mm", { locale: de })}
+                        </TableCell>
+                        <TableCell>
+                          {entry.check_out ? (
+                            format(new Date(entry.check_out), "HH:mm", { locale: de })
+                          ) : (
+                            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
+                              Nicht ausgestempelt
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {entry.break_duration_minutes || 0} min
+                        </TableCell>
+                        <TableCell className="font-semibold">
+                          {calculateDuration(entry.check_in, entry.check_out)}
+                        </TableCell>
+                        <TableCell>
+                          {entry.check_out ? (
+                            <Badge variant="outline" className="bg-success/10 text-success border-success/20">
+                              Abgeschlossen
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20">
+                              Aktiv
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditEntry(entry)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </TabsContent>
+
+            <TabsContent value="vacation" className="space-y-4">
+              {vacations.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Keine Urlaubsanträge vorhanden
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Typ</TableHead>
+                      <TableHead>Von</TableHead>
+                      <TableHead>Bis</TableHead>
+                      <TableHead>Tage</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Notizen</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {vacations.map((vacation) => (
+                      <TableRow key={vacation.id}>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {vacation.request_type === 'vacation' ? 'Urlaub' : 
+                             vacation.request_type === 'sick' ? 'Krankmeldung' : 'Sonstige'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {format(new Date(vacation.start_date), "dd.MM.yyyy", { locale: de })}
+                        </TableCell>
+                        <TableCell>
+                          {format(new Date(vacation.end_date), "dd.MM.yyyy", { locale: de })}
+                        </TableCell>
+                        <TableCell>{vacation.total_days}</TableCell>
+                        <TableCell>{getVacationStatusBadge(vacation.status)}</TableCell>
+                        <TableCell className="max-w-xs truncate">{vacation.notes || '-'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </TabsContent>
+
+            <TabsContent value="advances" className="space-y-4">
+              <div className="p-4 bg-muted/50 rounded-lg border mb-4">
+                <div className="text-sm text-muted-foreground">Offene Vorschüsse</div>
+                <div className="text-2xl font-bold">
+                  {new Intl.NumberFormat("de-DE", {
+                    style: "currency",
+                    currency: "EUR"
+                  }).format(
+                    advances
+                      .filter(a => a.status === 'approved' || a.status === 'pending')
+                      .reduce((sum, a) => sum + parseFloat(a.amount), 0)
+                  )}
+                </div>
+              </div>
+              
+              {advances.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Keine Gehaltsvorschüsse vorhanden
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Antragsdatum</TableHead>
+                      <TableHead>Betrag</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Notizen</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {advances.map((advance) => (
+                      <TableRow key={advance.id}>
+                        <TableCell>
+                          {format(new Date(advance.request_date), "dd.MM.yyyy", { locale: de })}
+                        </TableCell>
+                        <TableCell className="font-semibold">
+                          {new Intl.NumberFormat("de-DE", {
+                            style: "currency",
+                            currency: "EUR"
+                          }).format(parseFloat(advance.amount))}
+                        </TableCell>
+                        <TableCell>{getAdvanceStatusBadge(advance.status)}</TableCell>
+                        <TableCell className="max-w-xs truncate">{advance.notes || '-'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 
