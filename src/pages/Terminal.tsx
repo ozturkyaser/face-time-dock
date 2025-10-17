@@ -132,6 +132,7 @@ const Terminal = () => {
     if (!scannedBarcode.trim() || isProcessing) return;
 
     setIsProcessing(true);
+    stopCamera(); // Kamera ausschalten
 
     try {
       // Find employee by barcode
@@ -147,6 +148,7 @@ const Terminal = () => {
         toast.error("Fehler bei der Datenbankabfrage");
         setBarcode("");
         setIsProcessing(false);
+        if (scanMode === 'camera') startCamera(); // Kamera wieder einschalten bei Fehler
         return;
       }
 
@@ -157,6 +159,7 @@ const Terminal = () => {
         });
         setBarcode("");
         setIsProcessing(false);
+        if (scanMode === 'camera') startCamera(); // Kamera wieder einschalten bei Fehler
         return;
       }
 
@@ -167,6 +170,7 @@ const Terminal = () => {
       toast.error("Fehler bei der Anmeldung");
       setBarcode("");
       setIsProcessing(false);
+      if (scanMode === 'camera') startCamera(); // Kamera wieder einschalten bei Fehler
     }
   };
 
@@ -236,6 +240,9 @@ const Terminal = () => {
     setConfirmationData(null);
     setIsProcessing(false);
     setScanningEnabled(true);
+    if (scanMode === 'camera') {
+      startCamera(); // Kamera wieder einschalten
+    }
   };
 
   return (
