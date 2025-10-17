@@ -22,8 +22,7 @@ const Terminal = () => {
   const [checkedInEmployees, setCheckedInEmployees] = useState<any[]>([]);
   const [cameraFacing, setCameraFacing] = useState<'front' | 'back'>('back');
   const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
-  const [scannedEmployee, setScannedEmployee] = useState<any>(null);
-  const [showActionChoice, setShowActionChoice] = useState(false);
+  const [showVacationScan, setShowVacationScan] = useState(false);
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
@@ -270,11 +269,7 @@ const Terminal = () => {
         return;
       }
 
-      // Show action choice dialog
-      setScannedEmployee(employee);
-      setShowActionChoice(true);
-      setIsProcessing(false);
-      isProcessingRef.current = false;
+      await handleCheckInOut(employee);
       setBarcode("");
     } catch (error) {
       console.error("Error during barcode authentication:", error);
@@ -407,86 +402,15 @@ const Terminal = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 p-8">
-      {showVacationRequest && (
+      {showVacationScan && (
         <VacationRequest
           onComplete={() => {
-            setShowVacationRequest(false);
-            setScannedEmployee(null);
+            setShowVacationScan(false);
           }}
           onCancel={() => {
-            setShowVacationRequest(false);
-            setScannedEmployee(null);
-            if (scanMode === 'camera') {
-              scanningEnabledRef.current = true;
-              setScanningEnabled(true);
-              startCamera();
-            }
+            setShowVacationScan(false);
           }}
-          prefilledEmployee={scannedEmployee}
         />
-      )}
-
-      {showActionChoice && scannedEmployee && (
-        <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-8">
-          <Card className="w-full max-w-xl p-8 shadow-2xl">
-            <div className="text-center space-y-6">
-              <div className="mx-auto w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center">
-                <Scan className="h-12 w-12 text-primary" />
-              </div>
-              
-              <div>
-                <h2 className="text-3xl font-bold mb-2">
-                  {scannedEmployee.first_name} {scannedEmployee.last_name}
-                </h2>
-                <p className="text-muted-foreground">
-                  Was möchten Sie tun?
-                </p>
-              </div>
-
-              <div className="grid gap-4">
-                <Button
-                  size="lg"
-                  onClick={async () => {
-                    setShowActionChoice(false);
-                    await handleCheckInOut(scannedEmployee);
-                  }}
-                  className="h-16 text-lg"
-                >
-                  <Clock className="mr-2 h-6 w-6" />
-                  Ein-/Ausstempeln
-                </Button>
-                
-                <Button
-                  size="lg"
-                  variant="outline"
-                  onClick={() => {
-                    setShowActionChoice(false);
-                    setShowVacationRequest(true);
-                  }}
-                  className="h-16 text-lg"
-                >
-                  <CalendarDays className="mr-2 h-6 w-6" />
-                  Urlaubsantrag stellen
-                </Button>
-              </div>
-
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setShowActionChoice(false);
-                  setScannedEmployee(null);
-                  if (scanMode === 'camera') {
-                    scanningEnabledRef.current = true;
-                    setScanningEnabled(true);
-                    startCamera();
-                  }
-                }}
-              >
-                Abbrechen
-              </Button>
-            </div>
-          </Card>
-        </div>
       )}
 
       {showConfirmation && confirmationData && (
@@ -674,13 +598,17 @@ const Terminal = () => {
               </div>
             )}
 
-            <Card className="bg-muted/50 border-dashed">
-              <CardContent className="py-4">
-                <p className="text-center text-sm text-muted-foreground">
-                  💡 <strong>Tipp:</strong> QR-Code scannen für Ein-/Ausstempeln oder Urlaubsantrag
-                </p>
-              </CardContent>
-            </Card>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowVacationScan(true)}
+                className="flex-1 h-14 text-base"
+                disabled={isProcessing}
+              >
+                <CalendarDays className="mr-2 h-5 w-5" />
+                Urlaubsantrag
+              </Button>
+            </div>
 
             {lastCheckIn && (
               <Card className="p-6 bg-gradient-to-br from-card to-card/50">

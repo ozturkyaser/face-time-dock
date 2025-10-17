@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Calendar, Camera, CheckCircle, AlertCircle } from "lucide-react";
+import { Calendar, Camera, CheckCircle, AlertCircle, Scan, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,19 +9,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { differenceInDays } from "date-fns";
-import { extractFaceDescriptor, findBestMatch, detectFace } from "@/utils/faceRecognition";
 
 interface VacationRequestProps {
   onComplete: () => void;
   onCancel: () => void;
-  prefilledEmployee?: any;
 }
 
-const VacationRequest = ({ onComplete, onCancel, prefilledEmployee }: VacationRequestProps) => {
-  const [step, setStep] = useState<"auth" | "form">(prefilledEmployee ? "form" : "auth");
-  const [employee, setEmployee] = useState<any>(prefilledEmployee || null);
+const VacationRequest = ({ onComplete, onCancel }: VacationRequestProps) => {
+  const [step, setStep] = useState<"scan" | "form">("scan");
+  const [employee, setEmployee] = useState<any>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [employees, setEmployees] = useState<any[]>([]);
+  const [barcode, setBarcode] = useState("");
+  const [scanMode, setScanMode] = useState<'input' | 'camera'>('camera');
+  const [isCameraActive, setIsCameraActive] = useState(false);
   
   const [formData, setFormData] = useState({
     start_date: "",
@@ -31,117 +32,127 @@ const VacationRequest = ({ onComplete, onCancel, prefilledEmployee }: VacationRe
   });
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  const barcodeInputRef = useRef<HTMLInputElement>(null);
+  const codeReaderRef = useRef<any>(null);
 
   useEffect(() => {
-    if (!prefilledEmployee) {
-      loadEmployees();
+    loadEmployees();
+    if (step === "scan" && scanMode === 'camera') {
+      startCameraForScan();
     }
-    if (step === "auth" && !prefilledEmployee) {
-      startCamera();
-    }
-    return () => stopCamera();
-  }, [step, prefilledEmployee]);
+    return () => stopCameraForScan();
+  }, [step, scanMode]);
 
   const loadEmployees = async () => {
     const { data } = await supabase
       .from("employees")
-      .select("*, face_profiles(*)")
+      .select("*")
       .eq("is_active", true);
     setEmployees(data || []);
   };
 
-  const startCamera = async () => {
+  const startCameraForScan = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 1280, height: 720, facingMode: "user" }
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-      streamRef.current = stream;
-    } catch (error) {
-      console.error("Kamera-Fehler:", error);
-      toast.error("Kamerazugriff fehlgeschlagen");
-    }
-  };
-
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-  };
-
-  const recognizeFace = async () => {
-    if (!videoRef.current || !canvasRef.current) return;
-    
-    setIsProcessing(true);
-    
-    const canvas = canvasRef.current;
-    const video = videoRef.current;
-    
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      setIsProcessing(false);
-      return;
-    }
-    
-    ctx.drawImage(video, 0, 0);
-    
-    // Check if a face is detected
-    const faceDetected = detectFace(canvas);
-    if (!faceDetected) {
-      toast.error("Kein Gesicht erkannt. Bitte positionieren Sie Ihr Gesicht deutlich vor der Kamera.", {
-        icon: <AlertCircle className="h-5 w-5 text-destructive" />
-      });
-      setIsProcessing(false);
-      return;
-    }
-
-    try {
-      // Extract face descriptor
-      const currentDescriptor = await extractFaceDescriptor(canvas);
+      await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Get employees with face profiles (1000 dimensions only)
-      const employeesWithFaces = employees.filter(e => {
-        if (!e.face_profiles) return false;
-        const faceDesc = e.face_profiles.face_descriptor as any;
-        return faceDesc?.descriptor?.length === 1000;
-      });
+      const { BrowserMultiFormatReader } = await import('@zxing/library');
+      const codeReader = new BrowserMultiFormatReader();
       
-      if (employeesWithFaces.length === 0) {
-        toast.error("Keine registrierten Gesichter gefunden");
-        setIsProcessing(false);
+      const hints = new Map();
+      const { DecodeHintType, BarcodeFormat } = await import('@zxing/library');
+      
+      hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+        BarcodeFormat.CODE_128,
+        BarcodeFormat.CODE_39,
+        BarcodeFormat.QR_CODE
+      ]);
+      hints.set(DecodeHintType.TRY_HARDER, true);
+      codeReader.hints = hints;
+      codeReaderRef.current = codeReader;
+
+      const videoInputDevices = await codeReader.listVideoInputDevices();
+      if (videoInputDevices.length === 0) {
+        toast.error("Keine Kamera gefunden");
         return;
       }
 
-      // Find best match with 90% similarity threshold
-      const match = findBestMatch(currentDescriptor, employeesWithFaces, 0.90);
+      const selectedDeviceId = videoInputDevices[0].deviceId;
+
+      await codeReader.decodeFromVideoDevice(
+        selectedDeviceId,
+        videoRef.current!,
+        (result) => {
+          if (result && !isProcessing) {
+            handleBarcodeSubmit(result.getText());
+          }
+        }
+      );
       
-      if (!match) {
-        toast.error("Gesicht nicht erkannt. Bitte versuchen Sie es erneut.", {
-          icon: <AlertCircle className="h-5 w-5 text-destructive" />
+      setIsCameraActive(true);
+    } catch (error: any) {
+      console.error("Camera error:", error);
+      toast.error("Kamera konnte nicht gestartet werden");
+    }
+  };
+
+  const stopCameraForScan = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
+      videoRef.current.srcObject = null;
+    }
+    
+    if (codeReaderRef.current) {
+      try {
+        codeReaderRef.current.reset();
+      } catch (error) {
+        console.error("Error resetting camera:", error);
+      }
+      codeReaderRef.current = null;
+    }
+    
+    setIsCameraActive(false);
+  };
+
+  const handleBarcodeSubmit = async (scannedBarcode: string) => {
+    if (!scannedBarcode.trim() || isProcessing) return;
+
+    setIsProcessing(true);
+    stopCameraForScan();
+
+    try {
+      const { data: employee, error } = await supabase
+        .from("employees")
+        .select("*")
+        .eq("barcode", scannedBarcode)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (error || !employee) {
+        toast.error("Barcode nicht erkannt", {
+          icon: <AlertCircle className="h-5 w-5 text-destructive" />,
+          description: "Kein aktiver Mitarbeiter mit diesem Barcode gefunden"
         });
         setIsProcessing(false);
+        setBarcode("");
+        if (scanMode === 'camera') {
+          startCameraForScan();
+        }
         return;
       }
 
-      const { employee } = match;
-      
       setEmployee(employee);
-      stopCamera();
       setStep("form");
       setIsProcessing(false);
-      
       toast.success(`Willkommen ${employee.first_name} ${employee.last_name}!`);
     } catch (error) {
-      console.error("Error during face recognition:", error);
-      toast.error("Fehler bei der Gesichtserkennung");
+      console.error("Error during barcode authentication:", error);
+      toast.error("Fehler bei der Anmeldung");
       setIsProcessing(false);
+      setBarcode("");
+      if (scanMode === 'camera') {
+        startCameraForScan();
+      }
     }
   };
 
@@ -207,56 +218,108 @@ const VacationRequest = ({ onComplete, onCancel, prefilledEmployee }: VacationRe
             Urlaubsantrag
           </CardTitle>
           <CardDescription className="text-sm">
-            {step === "auth" 
-              ? "Authentifizierung per Gesichtserkennung" 
+            {step === "scan" 
+              ? "Scannen Sie Ihren QR-Code" 
               : "Geben Sie die Urlaubsdaten ein"}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {step === "auth" ? (
+          {step === "scan" ? (
             <div className="space-y-4">
-              <div className="bg-muted rounded-lg overflow-hidden aspect-video relative">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  className="w-full h-full object-cover"
-                />
-                <canvas ref={canvasRef} className="hidden" />
-                <div className="absolute inset-0 border-2 border-primary/30 rounded-lg pointer-events-none">
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-64 sm:w-64 sm:h-80 border-2 sm:border-4 border-primary/60 rounded-full" />
-                </div>
-              </div>
-
-              <p className="text-xs text-center text-muted-foreground px-2">
-                📸 Schauen Sie in die Kamera zur Authentifizierung
-              </p>
-
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex gap-2 justify-center">
                 <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={onCancel}
-                  className="flex-1 h-12"
-                >
-                  Abbrechen
-                </Button>
-                <Button
-                  size="lg"
-                  onClick={recognizeFace}
+                  variant={scanMode === 'camera' ? 'default' : 'outline'}
+                  onClick={() => {
+                    setScanMode('camera');
+                    if (!isCameraActive) {
+                      startCameraForScan();
+                    }
+                  }}
                   disabled={isProcessing}
-                  className="flex-1 h-12 bg-gradient-to-r from-primary to-primary/80"
                 >
-                  {isProcessing ? (
-                    "Erkenne..."
-                  ) : (
-                    <>
-                      <Camera className="mr-2 h-4 w-4" />
-                      Scannen
-                    </>
-                  )}
+                  <Camera className="h-4 w-4 mr-2" />
+                  Kamera
+                </Button>
+                <Button
+                  variant={scanMode === 'input' ? 'default' : 'outline'}
+                  onClick={() => {
+                    setScanMode('input');
+                    stopCameraForScan();
+                  }}
+                  disabled={isProcessing}
+                >
+                  <Scan className="h-4 w-4 mr-2" />
+                  Scanner
                 </Button>
               </div>
+
+              {scanMode === 'input' ? (
+                <div className="space-y-4">
+                  <Input
+                    ref={barcodeInputRef}
+                    type="text"
+                    value={barcode}
+                    onChange={(e) => setBarcode(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        handleBarcodeSubmit(barcode);
+                      }
+                    }}
+                    className="w-full h-14 text-center text-xl font-mono"
+                    placeholder="QR-Code wird hier angezeigt..."
+                    disabled={isProcessing}
+                    autoFocus
+                  />
+                  <p className="text-xs text-center text-muted-foreground">
+                    Der Scanner fügt den Code automatisch ein
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="bg-muted rounded-lg overflow-hidden aspect-video relative">
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      className="w-full h-full object-cover"
+                    />
+                    {!isCameraActive && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                        <p className="text-muted-foreground">Kamera wird gestartet...</p>
+                      </div>
+                    )}
+                    {isCameraActive && (
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="w-48 h-32 border-4 border-primary rounded-lg">
+                          <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-lg"></div>
+                          <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-lg"></div>
+                          <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-lg"></div>
+                          <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-lg"></div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-center text-muted-foreground">
+                    Halten Sie den QR-Code zentral vor die Kamera
+                  </p>
+                </div>
+              )}
+
+              {isProcessing && (
+                <div className="text-center">
+                  <Clock className="h-10 w-10 animate-spin mx-auto text-primary" />
+                  <p className="mt-2 text-sm">Wird verarbeitet...</p>
+                </div>
+              )}
+
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={onCancel}
+                className="w-full h-12"
+              >
+                Abbrechen
+              </Button>
             </div>
           ) : (
             <div className="space-y-4">
