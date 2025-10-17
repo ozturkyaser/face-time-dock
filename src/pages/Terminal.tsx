@@ -13,7 +13,7 @@ const Terminal = () => {
   const [lastCheckIn, setLastCheckIn] = useState<any>(null);
   const [showVacationRequest, setShowVacationRequest] = useState(false);
   const [barcode, setBarcode] = useState("");
-  const [scanMode, setScanMode] = useState<'input' | 'camera'>('input');
+  const [scanMode, setScanMode] = useState<'input' | 'camera'>('camera');
   const [isCameraActive, setIsCameraActive] = useState(false);
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -22,6 +22,8 @@ const Terminal = () => {
   useEffect(() => {
     if (scanMode === 'input' && barcodeInputRef.current) {
       barcodeInputRef.current.focus();
+    } else if (scanMode === 'camera' && !isCameraActive) {
+      startCamera();
     }
     
     return () => {
@@ -90,7 +92,6 @@ const Terminal = () => {
             const scannedCode = result.getText();
             console.log("Barcode detected:", scannedCode);
             handleBarcodeSubmit(scannedCode);
-            stopCamera();
           }
           // Only log non-NotFoundException errors
           if (error && error.name !== 'NotFoundException') {
@@ -254,17 +255,6 @@ const Terminal = () => {
 
             <div className="flex gap-2 justify-center">
               <Button
-                variant={scanMode === 'input' ? 'default' : 'outline'}
-                onClick={() => {
-                  setScanMode('input');
-                  stopCamera();
-                }}
-                disabled={isProcessing}
-              >
-                <Scan className="h-4 w-4 mr-2" />
-                Scanner
-              </Button>
-              <Button
                 variant={scanMode === 'camera' ? 'default' : 'outline'}
                 onClick={() => {
                   setScanMode('camera');
@@ -276,6 +266,17 @@ const Terminal = () => {
               >
                 <Camera className="h-4 w-4 mr-2" />
                 Kamera
+              </Button>
+              <Button
+                variant={scanMode === 'input' ? 'default' : 'outline'}
+                onClick={() => {
+                  setScanMode('input');
+                  stopCamera();
+                }}
+                disabled={isProcessing}
+              >
+                <Scan className="h-4 w-4 mr-2" />
+                Scanner
               </Button>
             </div>
 
