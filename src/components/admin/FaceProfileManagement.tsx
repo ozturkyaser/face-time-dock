@@ -131,23 +131,45 @@ const BarcodeManagement = () => {
   };
 
   const handleSaveBarcode = async () => {
-    if (!selectedEmployee) return;
-
-    const { error } = await supabase
-      .from("employees")
-      .update({ barcode: barcodeInput || null })
-      .eq("id", selectedEmployee.id);
-
-    if (error) {
-      toast.error("Fehler beim Speichern des Barcodes");
+    if (!selectedEmployee) {
+      toast.error("Kein Mitarbeiter ausgewählt");
       return;
     }
 
-    toast.success("Barcode erfolgreich gespeichert");
-    setShowBarcodeDialog(false);
-    setSelectedEmployee(null);
-    setBarcodeInput("");
-    loadEmployees();
+    if (!barcodeInput.trim()) {
+      toast.error("Bitte geben Sie einen Barcode ein");
+      return;
+    }
+
+    console.log("Saving barcode:", barcodeInput, "for employee:", selectedEmployee.id);
+
+    try {
+      const { data, error } = await supabase
+        .from("employees")
+        .update({ barcode: barcodeInput.trim() })
+        .eq("id", selectedEmployee.id)
+        .select();
+
+      if (error) {
+        console.error("Barcode save error:", error);
+        toast.error("Fehler beim Speichern des Barcodes", {
+          description: error.message
+        });
+        return;
+      }
+
+      console.log("Barcode saved successfully:", data);
+      toast.success("Barcode erfolgreich gespeichert");
+      stopCamera();
+      setShowBarcodeDialog(false);
+      setSelectedEmployee(null);
+      setBarcodeInput("");
+      setScanMode('input');
+      loadEmployees();
+    } catch (error: any) {
+      console.error("Unexpected error saving barcode:", error);
+      toast.error("Unerwarteter Fehler beim Speichern");
+    }
   };
 
   const employeesWithBarcodes = employees.filter(e => e.barcode).length;
