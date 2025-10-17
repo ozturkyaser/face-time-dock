@@ -246,11 +246,7 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
       return;
     }
 
-    const confirmGenerate = window.confirm(
-      `QR-Codes für ${employeesWithoutCode.length} Mitarbeiter generieren?`
-    );
-
-    if (!confirmGenerate) return;
+    toast.info(`Generiere QR-Codes für ${employeesWithoutCode.length} Mitarbeiter...`);
 
     let successCount = 0;
     for (const employee of employeesWithoutCode) {
