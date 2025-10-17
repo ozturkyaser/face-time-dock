@@ -54,9 +54,13 @@ const BarcodeManagement = () => {
 
   const startCamera = async () => {
     try {
-      // First, request camera permission explicitly
+      // Request camera with high resolution
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: "environment" } 
+        video: { 
+          facingMode: "environment",
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        } 
       });
       
       // Stop the permission stream immediately
@@ -64,6 +68,26 @@ const BarcodeManagement = () => {
 
       setIsCameraActive(true);
       const codeReader = new BrowserMultiFormatReader();
+      
+      // Set hints for better barcode detection
+      const hints = new Map();
+      const { DecodeHintType, BarcodeFormat } = await import('@zxing/library');
+      
+      // Specify common barcode formats
+      hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+        BarcodeFormat.CODE_128,
+        BarcodeFormat.CODE_39,
+        BarcodeFormat.EAN_13,
+        BarcodeFormat.EAN_8,
+        BarcodeFormat.UPC_A,
+        BarcodeFormat.UPC_E,
+        BarcodeFormat.QR_CODE
+      ]);
+      
+      // Enable more thorough scanning
+      hints.set(DecodeHintType.TRY_HARDER, true);
+      
+      codeReader.hints = hints;
       codeReaderRef.current = codeReader;
 
       const videoInputDevices = await codeReader.listVideoInputDevices();
@@ -92,6 +116,7 @@ const BarcodeManagement = () => {
             setScanMode('input');
             toast.success("Barcode erkannt");
           }
+          // Only log non-NotFoundException errors
           if (error && error.name !== 'NotFoundException') {
             console.error("Barcode scan error:", error);
           }
@@ -335,7 +360,20 @@ const BarcodeManagement = () => {
                       <p className="text-muted-foreground">Kamera wird gestartet...</p>
                     </div>
                   )}
+                  {isCameraActive && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="w-64 h-32 border-4 border-primary rounded-lg shadow-lg">
+                        <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-lg"></div>
+                        <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-lg"></div>
+                        <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-lg"></div>
+                        <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-lg"></div>
+                      </div>
+                    </div>
+                  )}
                 </div>
+                <p className="text-sm text-muted-foreground text-center">
+                  Halten Sie den Barcode in den markierten Bereich
+                </p>
               </div>
             )}
 
