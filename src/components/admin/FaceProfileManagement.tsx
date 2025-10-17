@@ -242,7 +242,12 @@ const BarcodeManagement = () => {
                   <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-4">
                         {employee.barcode ? (
-                          <QRCodeDisplay value={employee.barcode} size={60} className="rounded" />
+                          <QRCodeDisplay 
+                            value={employee.barcode} 
+                            size={60} 
+                            className="rounded" 
+                            employeeName={`${employee.first_name}_${employee.last_name}`}
+                          />
                         ) : (
                           <div className="bg-primary/10 rounded-full p-3">
                             <User className="h-5 w-5 text-primary" />

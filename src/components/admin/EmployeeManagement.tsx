@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, Camera, Eye } from "lucide-react";
+import { Plus, Edit, Trash2, Camera, Eye, QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -238,6 +238,38 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
     setShowEmployeeDetails(true);
   };
 
+  const handleGenerateAllQRCodes = async () => {
+    const employeesWithoutCode = employees.filter(emp => !emp.barcode);
+    
+    if (employeesWithoutCode.length === 0) {
+      toast.info("Alle Mitarbeiter haben bereits QR-Codes");
+      return;
+    }
+
+    const confirmGenerate = window.confirm(
+      `QR-Codes für ${employeesWithoutCode.length} Mitarbeiter generieren?`
+    );
+
+    if (!confirmGenerate) return;
+
+    let successCount = 0;
+    for (const employee of employeesWithoutCode) {
+      const newCode = generateUniqueCode();
+      const { error } = await supabase
+        .from("employees")
+        .update({ barcode: newCode })
+        .eq("id", employee.id);
+
+      if (!error) {
+        successCount++;
+      }
+    }
+
+    toast.success(`${successCount} QR-Codes erfolgreich generiert`);
+    loadEmployees();
+    onUpdate?.();
+  };
+
   if (showEmployeeDetails && selectedEmployee) {
     return (
       <div className="space-y-4">
@@ -282,13 +314,22 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
               Mitarbeiter hinzufügen, bearbeiten und verwalten
             </CardDescription>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="h-4 w-4" />
-                Neuer Mitarbeiter
-              </Button>
-            </DialogTrigger>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              className="gap-2"
+              onClick={handleGenerateAllQRCodes}
+            >
+              <QrCode className="h-4 w-4" />
+              QR-Codes generieren
+            </Button>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Neuer Mitarbeiter
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
@@ -453,6 +494,7 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
