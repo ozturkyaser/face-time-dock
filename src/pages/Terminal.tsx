@@ -41,6 +41,14 @@ const Terminal = () => {
 
   const startCamera = async () => {
     try {
+      // First, request camera permission explicitly
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: "environment" } 
+      });
+      
+      // Stop the permission stream immediately
+      stream.getTracks().forEach(track => track.stop());
+
       setIsCameraActive(true);
       const codeReader = new BrowserMultiFormatReader();
       codeReaderRef.current = codeReader;
@@ -52,10 +60,15 @@ const Terminal = () => {
         return;
       }
 
-      // Use the first available camera
-      const selectedDeviceId = videoInputDevices[0].deviceId;
+      // Use the first available camera (or back camera if available)
+      const backCamera = videoInputDevices.find(device => 
+        device.label.toLowerCase().includes('back') || 
+        device.label.toLowerCase().includes('rear') ||
+        device.label.toLowerCase().includes('environment')
+      );
+      const selectedDeviceId = backCamera?.deviceId || videoInputDevices[0].deviceId;
 
-      codeReader.decodeFromVideoDevice(
+      await codeReader.decodeFromVideoDevice(
         selectedDeviceId,
         videoRef.current!,
         (result, error) => {
@@ -70,9 +83,19 @@ const Terminal = () => {
           }
         }
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error("Camera error:", error);
-      toast.error("Kamera konnte nicht gestartet werden");
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        toast.error("Kamera-Zugriff verweigert", {
+          description: "Bitte erlauben Sie den Kamera-Zugriff in Ihren Browser-Einstellungen"
+        });
+      } else if (error.name === 'NotFoundError') {
+        toast.error("Keine Kamera gefunden");
+      } else {
+        toast.error("Kamera konnte nicht gestartet werden", {
+          description: error.message || "Unbekannter Fehler"
+        });
+      }
       setIsCameraActive(false);
     }
   };
