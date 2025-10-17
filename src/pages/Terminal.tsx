@@ -17,6 +17,7 @@ const Terminal = () => {
   const [barcode, setBarcode] = useState("");
   const [scanMode, setScanMode] = useState<'input' | 'camera'>('camera');
   const [isCameraActive, setIsCameraActive] = useState(false);
+  const [scanningEnabled, setScanningEnabled] = useState(true);
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
@@ -90,9 +91,10 @@ const Terminal = () => {
         selectedDeviceId,
         videoRef.current!,
         (result, error) => {
-          if (result) {
+          if (result && scanningEnabled) {
             const scannedCode = result.getText();
             console.log("Barcode detected:", scannedCode);
+            setScanningEnabled(false);
             handleBarcodeSubmit(scannedCode);
           }
           // Only log non-NotFoundException errors
@@ -233,6 +235,7 @@ const Terminal = () => {
     setShowConfirmation(false);
     setConfirmationData(null);
     setIsProcessing(false);
+    setScanningEnabled(true);
   };
 
   return (
