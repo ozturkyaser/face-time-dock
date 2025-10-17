@@ -36,6 +36,7 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
     location_id: "",
     hourly_rate: "",
     pin: "",
+    barcode: "",
     default_break_minutes: "45",
     expected_daily_hours: "8.00"
   });
@@ -84,6 +85,7 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
       position: formData.position || null,
       location_id: formData.location_id || null,
       hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : null,
+      barcode: formData.barcode || null,
       default_break_minutes: formData.default_break_minutes ? parseInt(formData.default_break_minutes) : 45,
       expected_daily_hours: formData.expected_daily_hours ? parseFloat(formData.expected_daily_hours) : 8.00
     };
@@ -157,6 +159,7 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
       location_id: "",
       hourly_rate: "",
       pin: "",
+      barcode: "",
       default_break_minutes: "45",
       expected_daily_hours: "8.00"
     });
@@ -177,6 +180,7 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
       location_id: employee.location_id || "",
       hourly_rate: employee.hourly_rate?.toString() || "",
       pin: "",
+      barcode: employee.barcode || "",
       default_break_minutes: employee.default_break_minutes?.toString() || "45",
       expected_daily_hours: employee.expected_daily_hours?.toString() || "8.00"
     });
@@ -294,12 +298,12 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="barcode">Barcode</Label>
                     <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      id="barcode"
+                      value={formData.barcode}
+                      onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+                      placeholder="Mitarbeiter-Barcode"
                     />
                   </div>
                 </div>
@@ -324,6 +328,15 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <Label htmlFor="phone">Telefon</Label>
                     <Input
                       id="phone"
@@ -331,6 +344,8 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     />
                   </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="department">Abteilung</Label>
                     <Input
@@ -339,14 +354,14 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
                       onChange={(e) => setFormData({ ...formData, department: e.target.value })}
                     />
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="position">Position</Label>
-                  <Input
-                    id="position"
-                    value={formData.position}
-                    onChange={(e) => setFormData({ ...formData, position: e.target.value })}
-                  />
+                  <div className="space-y-2">
+                    <Label htmlFor="position">Position</Label>
+                    <Input
+                      id="position"
+                      value={formData.position}
+                      onChange={(e) => setFormData({ ...formData, position: e.target.value })}
+                    />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="location">Standort</Label>

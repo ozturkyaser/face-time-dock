@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       employees: {
         Row: {
+          barcode: string | null
           created_at: string | null
           default_break_minutes: number | null
           department: string | null
@@ -39,6 +40,7 @@ export type Database = {
           vacation_days_used: number | null
         }
         Insert: {
+          barcode?: string | null
           created_at?: string | null
           default_break_minutes?: number | null
           department?: string | null
@@ -62,6 +64,7 @@ export type Database = {
           vacation_days_used?: number | null
         }
         Update: {
+          barcode?: string | null
           created_at?: string | null
           default_break_minutes?: number | null
           department?: string | null
