@@ -110,12 +110,20 @@ const Terminal = () => {
         .select("*")
         .eq("barcode", scannedBarcode)
         .eq("is_active", true)
-        .single();
+        .maybeSingle();
 
-      if (error || !employee) {
+      if (error) {
+        console.error("Database error:", error);
+        toast.error("Fehler bei der Datenbankabfrage");
+        setBarcode("");
+        setIsProcessing(false);
+        return;
+      }
+
+      if (!employee) {
         toast.error("Barcode nicht erkannt", {
           icon: <XCircle className="h-5 w-5 text-destructive" />,
-          description: "Kein Mitarbeiter mit diesem Barcode gefunden"
+          description: "Kein aktiver Mitarbeiter mit diesem Barcode gefunden"
         });
         setBarcode("");
         setIsProcessing(false);
