@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, Clock, Calendar, DollarSign, LayoutDashboard, Scan, Trash2, ShieldCheck, LogOut } from "lucide-react";
+import { Users, Clock, Calendar, DollarSign, LayoutDashboard, Scan, Trash2, ShieldCheck, LogOut, Printer } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import FaceProfileManagement from "@/components/admin/FaceProfileManagement";
 import MasterReset from "@/components/admin/MasterReset";
 import EmployeeTimeDetails from "@/components/admin/EmployeeTimeDetails";
 import UserManagement from "@/components/admin/UserManagement";
+import QRCodePrint from "@/components/admin/QRCodePrint";
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -27,6 +28,7 @@ const Admin = () => {
   });
   const [userRoles, setUserRoles] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showQRPrint, setShowQRPrint] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -248,6 +250,12 @@ const Admin = () => {
           </TabsContent>
 
           <TabsContent value="faces" className="space-y-4">
+            <div className="flex justify-end mb-4">
+              <Button onClick={() => setShowQRPrint(true)} className="gap-2">
+                <Printer className="h-4 w-4" />
+                QR-Codes drucken
+              </Button>
+            </div>
             <FaceProfileManagement />
           </TabsContent>
 
@@ -286,6 +294,8 @@ const Admin = () => {
           )}
         </Tabs>
       </div>
+      
+      {showQRPrint && <QRCodePrint onClose={() => setShowQRPrint(false)} />}
     </div>
   );
 };

@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Scan, User, AlertCircle, CheckCircle, Camera } from "lucide-react";
 import { BrowserMultiFormatReader } from "@zxing/library";
+import QRCodeDisplay from "./QRCodeDisplay";
 
 interface Employee {
   id: string;
@@ -208,21 +209,21 @@ const BarcodeManagement = () => {
             <div>
               <CardTitle className="text-2xl flex items-center gap-2">
                 <Scan className="h-6 w-6 text-primary" />
-                Barcode-Verwaltung
+                QR-Code-Verwaltung
               </CardTitle>
               <CardDescription className="mt-2">
-                Verwalten Sie Barcodes für Mitarbeiter
+                Verwalten Sie QR-Codes für Mitarbeiter - automatisch generiert beim Erstellen
               </CardDescription>
             </div>
             <div className="flex gap-2">
               <Badge variant="outline" className="bg-success/10">
                 <CheckCircle className="h-3 w-3 mr-1" />
-                {employeesWithBarcodes} mit Barcode
+                {employeesWithBarcodes} mit QR-Code
               </Badge>
               {employeesWithoutBarcodes > 0 && (
                 <Badge variant="outline" className="bg-destructive/10">
                   <AlertCircle className="h-3 w-3 mr-1" />
-                  {employeesWithoutBarcodes} ohne Barcode
+                  {employeesWithoutBarcodes} ohne QR-Code
                 </Badge>
               )}
             </div>
@@ -240,9 +241,13 @@ const BarcodeManagement = () => {
                   <CardContent className="py-4">
                   <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-4">
-                        <div className="bg-primary/10 rounded-full p-3">
-                          <User className="h-5 w-5 text-primary" />
-                        </div>
+                        {employee.barcode ? (
+                          <QRCodeDisplay value={employee.barcode} size={60} className="rounded" />
+                        ) : (
+                          <div className="bg-primary/10 rounded-full p-3">
+                            <User className="h-5 w-5 text-primary" />
+                          </div>
+                        )}
                         <div>
                           <p className="font-semibold">
                             {employee.first_name} {employee.last_name}
@@ -253,7 +258,7 @@ const BarcodeManagement = () => {
                           </p>
                           {employee.barcode && (
                             <p className="text-xs text-muted-foreground font-mono">
-                              Barcode: {employee.barcode}
+                              Code: {employee.barcode}
                             </p>
                           )}
                         </div>
@@ -262,12 +267,12 @@ const BarcodeManagement = () => {
                         {employee.barcode ? (
                           <Badge variant="outline" className="bg-success/10">
                             <CheckCircle className="h-3 w-3 mr-1" />
-                            Barcode zugewiesen
+                            QR-Code zugewiesen
                           </Badge>
                         ) : (
                           <Badge variant="outline" className="bg-destructive/10">
                             <AlertCircle className="h-3 w-3 mr-1" />
-                            Kein Barcode
+                            Kein QR-Code
                           </Badge>
                         )}
                         <Button
@@ -276,7 +281,7 @@ const BarcodeManagement = () => {
                           onClick={() => handleAssignBarcode(employee)}
                         >
                           <Scan className="h-4 w-4 mr-2" />
-                          {employee.barcode ? "Barcode ändern" : "Barcode zuweisen"}
+                          {employee.barcode ? "QR-Code ändern" : "QR-Code zuweisen"}
                         </Button>
                       </div>
                     </div>
@@ -299,11 +304,11 @@ const BarcodeManagement = () => {
       }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Barcode zuweisen</DialogTitle>
+            <DialogTitle>QR-Code zuweisen</DialogTitle>
             <DialogDescription>
               {scanMode === 'camera' 
-                ? 'Halten Sie den Barcode vor die Kamera' 
-                : 'Scannen Sie den Barcode oder geben Sie ihn manuell ein'}
+                ? 'Halten Sie den QR-Code vor die Kamera' 
+                : 'Scannen Sie den QR-Code oder geben Sie den Code manuell ein'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -336,12 +341,12 @@ const BarcodeManagement = () => {
 
             {scanMode === 'input' ? (
               <div className="space-y-2">
-                <Label htmlFor="barcode">Barcode</Label>
+                <Label htmlFor="barcode">QR-Code</Label>
                 <Input
                   id="barcode"
                   value={barcodeInput}
                   onChange={(e) => setBarcodeInput(e.target.value)}
-                  placeholder="Barcode scannen oder eingeben..."
+                  placeholder="QR-Code scannen oder eingeben..."
                   autoFocus
                 />
               </div>
@@ -362,7 +367,7 @@ const BarcodeManagement = () => {
                   )}
                   {isCameraActive && (
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <div className="w-64 h-32 border-4 border-primary rounded-lg shadow-lg">
+                      <div className="w-48 h-48 border-4 border-primary rounded-lg shadow-lg">
                         <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-lg"></div>
                         <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-lg"></div>
                         <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-lg"></div>
@@ -372,7 +377,7 @@ const BarcodeManagement = () => {
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground text-center">
-                  Halten Sie den Barcode in den markierten Bereich
+                  Halten Sie den QR-Code zentral im Zielbereich
                 </p>
               </div>
             )}

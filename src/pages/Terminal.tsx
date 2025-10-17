@@ -228,7 +228,7 @@ const Terminal = () => {
             Zeiterfassung Terminal
           </h1>
           <p className="text-xl text-muted-foreground">
-            Scannen Sie Ihren Barcode zum An- oder Abmelden
+            Scannen Sie Ihren QR-Code zum An- oder Abmelden
           </p>
         </div>
 
@@ -243,12 +243,12 @@ const Terminal = () => {
                 )}
               </div>
               <h2 className="text-3xl font-bold">
-                {scanMode === 'camera' ? 'Barcode mit Kamera scannen' : 'Barcode scannen'}
+                {scanMode === 'camera' ? 'QR-Code mit Kamera scannen' : 'QR-Code scannen'}
               </h2>
               <p className="text-xl text-muted-foreground">
                 {scanMode === 'camera' 
-                  ? 'Halten Sie den Barcode vor die Kamera' 
-                  : 'Bitte scannen Sie Ihren Mitarbeiter-Barcode'}
+                  ? 'Halten Sie den QR-Code vor die Kamera' 
+                  : 'Bitte scannen Sie Ihren Mitarbeiter-QR-Code'}
               </p>
             </div>
 
@@ -292,12 +292,12 @@ const Terminal = () => {
                     }
                   }}
                   className="w-full h-16 text-center text-2xl font-mono"
-                  placeholder="Barcode wird hier angezeigt..."
+                  placeholder="QR-Code wird hier angezeigt..."
                   disabled={isProcessing}
                   autoFocus
                 />
                 <p className="text-sm text-muted-foreground text-center">
-                  Der Barcode-Scanner fügt den Code automatisch ein
+                  Der Scanner fügt den Code automatisch ein
                 </p>
               </div>
             ) : (
@@ -326,7 +326,7 @@ const Terminal = () => {
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground text-center">
-                  Halten Sie den Barcode in den markierten Bereich
+                  Halten Sie den QR-Code zentral im Zielbereich
                 </p>
               </div>
             )}

@@ -72,8 +72,20 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
     setLocations(data || []);
   };
 
+  const generateUniqueCode = () => {
+    // Generate a unique code: timestamp + random string
+    const timestamp = Date.now().toString(36);
+    const randomStr = Math.random().toString(36).substring(2, 7);
+    return `EMP-${timestamp}-${randomStr}`.toUpperCase();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Auto-generate QR code for new employees if not provided
+    const barcodeValue = editingEmployee 
+      ? (formData.barcode || null)
+      : (formData.barcode || generateUniqueCode());
     
     const employeeData: any = {
       employee_number: formData.employee_number,
@@ -85,7 +97,7 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
       position: formData.position || null,
       location_id: formData.location_id || null,
       hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : null,
-      barcode: formData.barcode || null,
+      barcode: barcodeValue,
       default_break_minutes: formData.default_break_minutes ? parseInt(formData.default_break_minutes) : 45,
       expected_daily_hours: formData.expected_daily_hours ? parseFloat(formData.expected_daily_hours) : 8.00
     };
