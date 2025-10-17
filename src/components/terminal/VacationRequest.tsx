@@ -14,11 +14,12 @@ import { extractFaceDescriptor, findBestMatch, detectFace } from "@/utils/faceRe
 interface VacationRequestProps {
   onComplete: () => void;
   onCancel: () => void;
+  prefilledEmployee?: any;
 }
 
-const VacationRequest = ({ onComplete, onCancel }: VacationRequestProps) => {
-  const [step, setStep] = useState<"auth" | "form">("auth");
-  const [employee, setEmployee] = useState<any>(null);
+const VacationRequest = ({ onComplete, onCancel, prefilledEmployee }: VacationRequestProps) => {
+  const [step, setStep] = useState<"auth" | "form">(prefilledEmployee ? "form" : "auth");
+  const [employee, setEmployee] = useState<any>(prefilledEmployee || null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [employees, setEmployees] = useState<any[]>([]);
   
@@ -34,12 +35,14 @@ const VacationRequest = ({ onComplete, onCancel }: VacationRequestProps) => {
   const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
-    loadEmployees();
-    if (step === "auth") {
+    if (!prefilledEmployee) {
+      loadEmployees();
+    }
+    if (step === "auth" && !prefilledEmployee) {
       startCamera();
     }
     return () => stopCamera();
-  }, [step]);
+  }, [step, prefilledEmployee]);
 
   const loadEmployees = async () => {
     const { data } = await supabase
