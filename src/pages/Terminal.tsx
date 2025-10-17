@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Scan, CheckCircle, XCircle, Clock, CalendarDays, Camera } from "lucide-react";
+import { Scan, CheckCircle, XCircle, Clock, CalendarDays, Camera, LogIn, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -293,11 +293,15 @@ const Terminal = () => {
         <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-8">
           <Card className="w-full max-w-2xl p-12 shadow-2xl">
             <div className="text-center space-y-8">
-              <div className="mx-auto w-32 h-32 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+              <div className={`mx-auto w-40 h-40 rounded-full flex items-center justify-center ${
+                confirmationData.type === "in" 
+                  ? "bg-green-500/20" 
+                  : "bg-red-500/20"
+              }`}>
                 {confirmationData.type === "in" ? (
-                  <CheckCircle className="h-16 w-16 text-white" />
+                  <LogIn className="h-24 w-24 text-green-600" strokeWidth={2.5} />
                 ) : (
-                  <XCircle className="h-16 w-16 text-white" />
+                  <LogOut className="h-24 w-24 text-red-600" strokeWidth={2.5} />
                 )}
               </div>
               
@@ -305,8 +309,10 @@ const Terminal = () => {
                 <h2 className="text-5xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                   {confirmationData.employee.first_name} {confirmationData.employee.last_name}
                 </h2>
-                <p className="text-3xl font-semibold">
-                  {confirmationData.type === "in" ? "Eingestempelt" : "Ausgestempelt"}
+                <p className={`text-4xl font-bold ${
+                  confirmationData.type === "in" ? "text-green-600" : "text-red-600"
+                }`}>
+                  {confirmationData.type === "in" ? "EINGESTEMPELT" : "AUSGESTEMPELT"}
                 </p>
                 <p className="text-6xl font-bold text-primary">
                   {new Date(confirmationData.time).toLocaleTimeString("de-DE", {
