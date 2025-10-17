@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import VacationRequest from "@/components/terminal/VacationRequest";
 import { BrowserMultiFormatReader } from "@zxing/library";
+import { checkGeofence, formatDistance } from "@/utils/geolocation";
 
 const Terminal = () => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -220,10 +221,19 @@ const Terminal = () => {
     stopCamera(); // Kamera ausschalten
 
     try {
-      // Find employee by barcode
+      // Find employee by barcode with location data
       const { data: employee, error } = await supabase
         .from("employees")
-        .select("*")
+        .select(`
+          *,
+          locations (
+            id,
+            name,
+            latitude,
+            longitude,
+            geofence_radius_meters
+          )
+        `)
         .eq("barcode", scannedBarcode)
         .eq("is_active", true)
         .maybeSingle();
@@ -290,7 +300,7 @@ const Terminal = () => {
     let actionTime = currentTime;
 
     if (openEntries && openEntries.length > 0) {
-      // Check out
+      // Check out - no geofence check required
       const { error } = await supabase
         .from("time_entries")
         .update({ check_out: currentTime })
@@ -298,6 +308,13 @@ const Terminal = () => {
 
       if (error) {
         toast.error("Fehler beim Ausstempeln");
+        setIsProcessing(false);
+        isProcessingRef.current = false;
+        if (scanMode === 'camera') {
+          scanningEnabledRef.current = true;
+          setScanningEnabled(true);
+          startCamera();
+        }
         return;
       }
 
@@ -306,7 +323,42 @@ const Terminal = () => {
         icon: <XCircle className="h-5 w-5 text-destructive" />
       });
     } else {
-      // Check in
+      // Check in - perform geofence check
+      if (employee.locations) {
+        const geofenceResult = await checkGeofence(
+          employee.locations.latitude,
+          employee.locations.longitude,
+          employee.locations.geofence_radius_meters
+        );
+
+        if (!geofenceResult.allowed) {
+          if (geofenceResult.error) {
+            toast.error(`Standortfehler: ${geofenceResult.error}`, {
+              description: "Bitte aktivieren Sie die Standortfreigabe"
+            });
+          } else if (geofenceResult.distance) {
+            toast.error(
+              `Einstempeln nicht möglich`,
+              {
+                description: `Sie befinden sich ${formatDistance(geofenceResult.distance)} vom Standort "${employee.locations.name}" entfernt. Erlaubter Radius: ${formatDistance(employee.locations.geofence_radius_meters)}`
+              }
+            );
+          } else {
+            toast.error("Einstempeln nicht möglich", {
+              description: "Sie befinden sich nicht am richtigen Standort"
+            });
+          }
+          setIsProcessing(false);
+          isProcessingRef.current = false;
+          if (scanMode === 'camera') {
+            scanningEnabledRef.current = true;
+            setScanningEnabled(true);
+            startCamera();
+          }
+          return;
+        }
+      }
+
       const { error } = await supabase
         .from("time_entries")
         .insert({
@@ -316,6 +368,13 @@ const Terminal = () => {
 
       if (error) {
         toast.error("Fehler beim Einstempeln");
+        setIsProcessing(false);
+        isProcessingRef.current = false;
+        if (scanMode === 'camera') {
+          scanningEnabledRef.current = true;
+          setScanningEnabled(true);
+          startCamera();
+        }
         return;
       }
 
