@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, Clock, Calendar, DollarSign, LayoutDashboard, Camera, Trash2, ShieldCheck, LogOut } from "lucide-react";
+import { Users, Clock, Calendar, DollarSign, LayoutDashboard, Scan, Trash2, ShieldCheck, LogOut } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -206,8 +206,8 @@ const Admin = () => {
               <span className="text-xs sm:text-sm">Mitarbeiter</span>
             </TabsTrigger>
             <TabsTrigger value="faces" className="flex flex-col gap-1 py-3">
-              <Camera className="h-5 w-5" />
-              <span className="text-xs sm:text-sm">Gesichter</span>
+              <Scan className="h-5 w-5" />
+              <span className="text-xs sm:text-sm">Barcodes</span>
             </TabsTrigger>
             <TabsTrigger value="locations" className="flex flex-col gap-1 py-3">
               <LayoutDashboard className="h-5 w-5" />

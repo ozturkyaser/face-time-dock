@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Camera, User, AlertCircle, CheckCircle } from "lucide-react";
-import FaceReRegistration from "./FaceReRegistration";
+import { Scan, User, AlertCircle, CheckCircle } from "lucide-react";
 
 interface Employee {
   id: string;
@@ -14,19 +16,15 @@ interface Employee {
   last_name: string;
   department: string;
   is_active: boolean;
-  face_profiles: {
-    id: string;
-    created_at: string;
-    updated_at: string;
-    image_url: string | null;
-  } | null;
+  barcode: string | null;
 }
 
-const FaceProfileManagement = () => {
+const BarcodeManagement = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [showReRegistration, setShowReRegistration] = useState(false);
+  const [showBarcodeDialog, setShowBarcodeDialog] = useState(false);
+  const [barcodeInput, setBarcodeInput] = useState("");
 
   useEffect(() => {
     loadEmployees();
@@ -36,15 +34,7 @@ const FaceProfileManagement = () => {
     setLoading(true);
     const { data, error } = await supabase
       .from("employees")
-      .select(`
-        *,
-        face_profiles (
-          id,
-          created_at,
-          updated_at,
-          image_url
-        )
-      `)
+      .select("*")
       .eq("is_active", true)
       .order("employee_number");
 
@@ -57,19 +47,34 @@ const FaceProfileManagement = () => {
     setLoading(false);
   };
 
-  const handleReRegister = (employee: Employee) => {
+  const handleAssignBarcode = (employee: Employee) => {
     setSelectedEmployee(employee);
-    setShowReRegistration(true);
+    setBarcodeInput(employee.barcode || "");
+    setShowBarcodeDialog(true);
   };
 
-  const handleComplete = () => {
-    setShowReRegistration(false);
+  const handleSaveBarcode = async () => {
+    if (!selectedEmployee) return;
+
+    const { error } = await supabase
+      .from("employees")
+      .update({ barcode: barcodeInput || null })
+      .eq("id", selectedEmployee.id);
+
+    if (error) {
+      toast.error("Fehler beim Speichern des Barcodes");
+      return;
+    }
+
+    toast.success("Barcode erfolgreich gespeichert");
+    setShowBarcodeDialog(false);
     setSelectedEmployee(null);
+    setBarcodeInput("");
     loadEmployees();
   };
 
-  const employeesWithFaces = employees.filter(e => e.face_profiles).length;
-  const employeesWithoutFaces = employees.length - employeesWithFaces;
+  const employeesWithBarcodes = employees.filter(e => e.barcode).length;
+  const employeesWithoutBarcodes = employees.length - employeesWithBarcodes;
 
   return (
     <>
@@ -78,22 +83,22 @@ const FaceProfileManagement = () => {
           <div className="flex items-start justify-between">
             <div>
               <CardTitle className="text-2xl flex items-center gap-2">
-                <Camera className="h-6 w-6 text-primary" />
-                Gesichtsverwaltung
+                <Scan className="h-6 w-6 text-primary" />
+                Barcode-Verwaltung
               </CardTitle>
               <CardDescription className="mt-2">
-                Verwalten Sie Gesichtsprofile für Mitarbeiter
+                Verwalten Sie Barcodes für Mitarbeiter
               </CardDescription>
             </div>
             <div className="flex gap-2">
               <Badge variant="outline" className="bg-success/10">
                 <CheckCircle className="h-3 w-3 mr-1" />
-                {employeesWithFaces} mit Profil
+                {employeesWithBarcodes} mit Barcode
               </Badge>
-              {employeesWithoutFaces > 0 && (
+              {employeesWithoutBarcodes > 0 && (
                 <Badge variant="outline" className="bg-destructive/10">
                   <AlertCircle className="h-3 w-3 mr-1" />
-                  {employeesWithoutFaces} ohne Profil
+                  {employeesWithoutBarcodes} ohne Barcode
                 </Badge>
               )}
             </div>
@@ -109,21 +114,11 @@ const FaceProfileManagement = () => {
               {employees.map((employee) => (
                 <Card key={employee.id} className="bg-card/50">
                   <CardContent className="py-4">
-                    <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-4">
-                        {employee.face_profiles?.image_url ? (
-                          <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-primary/20">
-                            <img 
-                              src={employee.face_profiles.image_url} 
-                              alt={`${employee.first_name} ${employee.last_name}`}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        ) : (
-                          <div className="bg-primary/10 rounded-full p-3">
-                            <User className="h-5 w-5 text-primary" />
-                          </div>
-                        )}
+                        <div className="bg-primary/10 rounded-full p-3">
+                          <User className="h-5 w-5 text-primary" />
+                        </div>
                         <div>
                           <p className="font-semibold">
                             {employee.first_name} {employee.last_name}
@@ -132,27 +127,32 @@ const FaceProfileManagement = () => {
                             Nr. {employee.employee_number}
                             {employee.department && ` • ${employee.department}`}
                           </p>
+                          {employee.barcode && (
+                            <p className="text-xs text-muted-foreground font-mono">
+                              Barcode: {employee.barcode}
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        {employee.face_profiles ? (
+                        {employee.barcode ? (
                           <Badge variant="outline" className="bg-success/10">
                             <CheckCircle className="h-3 w-3 mr-1" />
-                            Registriert
+                            Barcode zugewiesen
                           </Badge>
                         ) : (
                           <Badge variant="outline" className="bg-destructive/10">
                             <AlertCircle className="h-3 w-3 mr-1" />
-                            Nicht registriert
+                            Kein Barcode
                           </Badge>
                         )}
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleReRegister(employee)}
+                          onClick={() => handleAssignBarcode(employee)}
                         >
-                          <Camera className="h-4 w-4 mr-2" />
-                          {employee.face_profiles ? "Neu registrieren" : "Registrieren"}
+                          <Scan className="h-4 w-4 mr-2" />
+                          {employee.barcode ? "Barcode ändern" : "Barcode zuweisen"}
                         </Button>
                       </div>
                     </div>
@@ -164,18 +164,49 @@ const FaceProfileManagement = () => {
         </CardContent>
       </Card>
 
-      {showReRegistration && selectedEmployee && (
-        <FaceReRegistration
-          employee={selectedEmployee}
-          onComplete={handleComplete}
-          onCancel={() => {
-            setShowReRegistration(false);
-            setSelectedEmployee(null);
-          }}
-        />
-      )}
+      <Dialog open={showBarcodeDialog} onOpenChange={setShowBarcodeDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Barcode zuweisen</DialogTitle>
+            <DialogDescription>
+              Scannen Sie den Barcode oder geben Sie ihn manuell ein
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="barcode">Barcode</Label>
+              <Input
+                id="barcode"
+                value={barcodeInput}
+                onChange={(e) => setBarcodeInput(e.target.value)}
+                placeholder="Barcode scannen oder eingeben..."
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowBarcodeDialog(false);
+                  setSelectedEmployee(null);
+                  setBarcodeInput("");
+                }}
+                className="flex-1"
+              >
+                Abbrechen
+              </Button>
+              <Button
+                onClick={handleSaveBarcode}
+                className="flex-1"
+              >
+                Speichern
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
 
-export default FaceProfileManagement;
+export default BarcodeManagement;
