@@ -160,11 +160,6 @@ const Terminal = () => {
 
       await handleCheckInOut(employee);
       setBarcode("");
-      
-      // Wait 5 seconds before allowing next scan
-      setTimeout(() => {
-        setIsProcessing(false);
-      }, 5000);
     } catch (error) {
       console.error("Error during barcode authentication:", error);
       toast.error("Fehler bei der Anmeldung");
@@ -232,12 +227,12 @@ const Terminal = () => {
     });
     setShowConfirmation(true);
     setLastCheckIn({ ...employee, type: actionType });
+  };
 
-    // Reset after 5 seconds
-    setTimeout(() => {
-      setShowConfirmation(false);
-      setConfirmationData(null);
-    }, 5000);
+  const handleConfirmationClose = () => {
+    setShowConfirmation(false);
+    setConfirmationData(null);
+    setIsProcessing(false);
   };
 
   return (
@@ -284,6 +279,14 @@ const Terminal = () => {
                   })}
                 </p>
               </div>
+
+              <Button
+                onClick={handleConfirmationClose}
+                size="lg"
+                className="text-2xl h-16 px-12"
+              >
+                OK
+              </Button>
             </div>
           </Card>
         </div>
