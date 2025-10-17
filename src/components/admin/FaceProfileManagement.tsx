@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Scan, User, AlertCircle, CheckCircle } from "lucide-react";
+import { Scan, User, AlertCircle, CheckCircle, Camera } from "lucide-react";
+import { BrowserMultiFormatReader } from "@zxing/library";
 
 interface Employee {
   id: string;
@@ -25,6 +26,10 @@ const BarcodeManagement = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [showBarcodeDialog, setShowBarcodeDialog] = useState(false);
   const [barcodeInput, setBarcodeInput] = useState("");
+  const [scanMode, setScanMode] = useState<'input' | 'camera'>('input');
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
 
   useEffect(() => {
     loadEmployees();
@@ -47,9 +52,81 @@ const BarcodeManagement = () => {
     setLoading(false);
   };
 
+  const startCamera = async () => {
+    try {
+      // First, request camera permission explicitly
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: "environment" } 
+      });
+      
+      // Stop the permission stream immediately
+      stream.getTracks().forEach(track => track.stop());
+
+      setIsCameraActive(true);
+      const codeReader = new BrowserMultiFormatReader();
+      codeReaderRef.current = codeReader;
+
+      const videoInputDevices = await codeReader.listVideoInputDevices();
+      if (videoInputDevices.length === 0) {
+        toast.error("Keine Kamera gefunden");
+        setIsCameraActive(false);
+        return;
+      }
+
+      const backCamera = videoInputDevices.find(device => 
+        device.label.toLowerCase().includes('back') || 
+        device.label.toLowerCase().includes('rear') ||
+        device.label.toLowerCase().includes('environment')
+      );
+      const selectedDeviceId = backCamera?.deviceId || videoInputDevices[0].deviceId;
+
+      await codeReader.decodeFromVideoDevice(
+        selectedDeviceId,
+        videoRef.current!,
+        (result, error) => {
+          if (result) {
+            const scannedCode = result.getText();
+            console.log("Barcode detected:", scannedCode);
+            setBarcodeInput(scannedCode);
+            stopCamera();
+            setScanMode('input');
+            toast.success("Barcode erkannt");
+          }
+          if (error && error.name !== 'NotFoundException') {
+            console.error("Barcode scan error:", error);
+          }
+        }
+      );
+    } catch (error: any) {
+      console.error("Camera error:", error);
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        toast.error("Kamera-Zugriff verweigert", {
+          description: "Bitte erlauben Sie den Kamera-Zugriff in Ihren Browser-Einstellungen"
+        });
+      } else if (error.name === 'NotFoundError') {
+        toast.error("Keine Kamera gefunden");
+      } else {
+        toast.error("Kamera konnte nicht gestartet werden", {
+          description: error.message || "Unbekannter Fehler"
+        });
+      }
+      setIsCameraActive(false);
+    }
+  };
+
+  const stopCamera = () => {
+    if (codeReaderRef.current) {
+      codeReaderRef.current.reset();
+      codeReaderRef.current = null;
+    }
+    setIsCameraActive(false);
+  };
+
   const handleAssignBarcode = (employee: Employee) => {
     setSelectedEmployee(employee);
     setBarcodeInput(employee.barcode || "");
+    setScanMode('input');
+    stopCamera();
     setShowBarcodeDialog(true);
   };
 
@@ -164,32 +241,91 @@ const BarcodeManagement = () => {
         </CardContent>
       </Card>
 
-      <Dialog open={showBarcodeDialog} onOpenChange={setShowBarcodeDialog}>
-        <DialogContent>
+      <Dialog open={showBarcodeDialog} onOpenChange={(open) => {
+        setShowBarcodeDialog(open);
+        if (!open) {
+          stopCamera();
+          setSelectedEmployee(null);
+          setBarcodeInput("");
+          setScanMode('input');
+        }
+      }}>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Barcode zuweisen</DialogTitle>
             <DialogDescription>
-              Scannen Sie den Barcode oder geben Sie ihn manuell ein
+              {scanMode === 'camera' 
+                ? 'Halten Sie den Barcode vor die Kamera' 
+                : 'Scannen Sie den Barcode oder geben Sie ihn manuell ein'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="barcode">Barcode</Label>
-              <Input
-                id="barcode"
-                value={barcodeInput}
-                onChange={(e) => setBarcodeInput(e.target.value)}
-                placeholder="Barcode scannen oder eingeben..."
-                autoFocus
-              />
+            <div className="flex gap-2 justify-center">
+              <Button
+                variant={scanMode === 'input' ? 'default' : 'outline'}
+                onClick={() => {
+                  setScanMode('input');
+                  stopCamera();
+                }}
+                size="sm"
+              >
+                <Scan className="h-4 w-4 mr-2" />
+                Manuell / Scanner
+              </Button>
+              <Button
+                variant={scanMode === 'camera' ? 'default' : 'outline'}
+                onClick={() => {
+                  setScanMode('camera');
+                  if (!isCameraActive) {
+                    startCamera();
+                  }
+                }}
+                size="sm"
+              >
+                <Camera className="h-4 w-4 mr-2" />
+                Kamera
+              </Button>
             </div>
+
+            {scanMode === 'input' ? (
+              <div className="space-y-2">
+                <Label htmlFor="barcode">Barcode</Label>
+                <Input
+                  id="barcode"
+                  value={barcodeInput}
+                  onChange={(e) => setBarcodeInput(e.target.value)}
+                  placeholder="Barcode scannen oder eingeben..."
+                  autoFocus
+                />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label>Kamera-Scan</Label>
+                <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
+                  <video
+                    ref={videoRef}
+                    className="w-full h-full object-cover"
+                    autoPlay
+                    playsInline
+                  />
+                  {!isCameraActive && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                      <p className="text-muted-foreground">Kamera wird gestartet...</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2">
               <Button
                 variant="outline"
                 onClick={() => {
+                  stopCamera();
                   setShowBarcodeDialog(false);
                   setSelectedEmployee(null);
                   setBarcodeInput("");
+                  setScanMode('input');
                 }}
                 className="flex-1"
               >
@@ -198,6 +334,7 @@ const BarcodeManagement = () => {
               <Button
                 onClick={handleSaveBarcode}
                 className="flex-1"
+                disabled={!barcodeInput.trim()}
               >
                 Speichern
               </Button>
