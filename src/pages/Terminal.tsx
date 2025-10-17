@@ -100,11 +100,16 @@ const Terminal = () => {
         selectedDeviceId,
         videoRef.current!,
         (result, error) => {
-          if (result && scanningEnabled) {
-            const scannedCode = result.getText();
-            console.log("Barcode detected:", scannedCode);
-            setScanningEnabled(false);
-            handleBarcodeSubmit(scannedCode);
+          if (result) {
+            console.log("QR Code detected, scanningEnabled:", scanningEnabled);
+            if (scanningEnabled && !isProcessing) {
+              const scannedCode = result.getText();
+              console.log("Processing barcode:", scannedCode);
+              setScanningEnabled(false);
+              handleBarcodeSubmit(scannedCode);
+            } else {
+              console.log("Scan ignored - already processing or disabled");
+            }
           }
           // Only log non-NotFoundException errors
           if (error && error.name !== 'NotFoundException') {
@@ -255,19 +260,23 @@ const Terminal = () => {
   };
 
   const handleConfirmationClose = () => {
-    console.log("Closing confirmation, restarting camera...");
+    console.log("Closing confirmation, resetting states...");
     setShowConfirmation(false);
     setConfirmationData(null);
-    setIsProcessing(false);
-    setScanningEnabled(true);
     
-    // Small delay before restarting camera to ensure clean state
+    // Reset all states before restarting camera
+    setIsProcessing(false);
+    
+    // Small delay to ensure states are updated
     setTimeout(() => {
+      console.log("Setting scanningEnabled to true");
+      setScanningEnabled(true);
+      
       if (scanMode === 'camera') {
-        console.log("Attempting to restart camera");
+        console.log("Restarting camera after confirmation");
         startCamera();
       }
-    }, 100);
+    }, 200);
   };
 
   return (
