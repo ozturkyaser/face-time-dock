@@ -276,24 +276,8 @@ const Terminal = () => {
   };
 
   const handleConfirmationClose = () => {
-    console.log("Closing confirmation, resetting all states...");
-    setShowConfirmation(false);
-    setConfirmationData(null);
-    setIsProcessing(false);
-    isProcessingRef.current = false;
-    
-    // Reset scanning state
-    console.log("Setting scanningEnabled to true");
-    scanningEnabledRef.current = true;
-    setScanningEnabled(true);
-    
-    // Small delay to ensure clean state before restarting camera
-    setTimeout(() => {
-      if (scanMode === 'camera') {
-        console.log("Restarting camera after confirmation");
-        startCamera();
-      }
-    }, 200);
+    console.log("Closing confirmation and reloading page...");
+    window.location.reload();
   };
 
   return (
