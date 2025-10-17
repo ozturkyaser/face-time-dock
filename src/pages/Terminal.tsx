@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Scan, CheckCircle, XCircle, Clock, CalendarDays, Camera, LogIn, LogOut } from "lucide-react";
+import { Scan, CheckCircle, XCircle, Clock, CalendarDays, Camera, LogIn, LogOut, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,11 +18,36 @@ const Terminal = () => {
   const [scanMode, setScanMode] = useState<'input' | 'camera'>('camera');
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [scanningEnabled, setScanningEnabled] = useState(true);
+  const [checkedInEmployees, setCheckedInEmployees] = useState<any[]>([]);
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
   const scanningEnabledRef = useRef(true);
   const isProcessingRef = useRef(false);
+
+  useEffect(() => {
+    loadCheckedInEmployees();
+
+    // Subscribe to realtime updates
+    const channel = supabase
+      .channel('time_entries_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'time_entries'
+        },
+        () => {
+          loadCheckedInEmployees();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   useEffect(() => {
     if (scanMode === 'input' && barcodeInputRef.current) {
@@ -35,6 +60,27 @@ const Terminal = () => {
       stopCamera();
     };
   }, [scanMode]);
+
+  const loadCheckedInEmployees = async () => {
+    const { data, error } = await supabase
+      .from("time_entries")
+      .select(`
+        *,
+        employees (
+          id,
+          first_name,
+          last_name,
+          employee_number,
+          position
+        )
+      `)
+      .is("check_out", null)
+      .order("check_in", { ascending: false });
+
+    if (!error && data) {
+      setCheckedInEmployees(data);
+    }
+  };
 
   const startCamera = async () => {
     try {
@@ -495,6 +541,54 @@ const Terminal = () => {
             )}
           </div>
         </Card>
+
+        {checkedInEmployees.length > 0 && (
+          <Card className="p-8 shadow-xl">
+            <div className="space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center">
+                  <Users className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold">Anwesende Mitarbeiter</h3>
+                  <p className="text-muted-foreground">{checkedInEmployees.length} Mitarbeiter aktuell angemeldet</p>
+                </div>
+              </div>
+
+              <div className="grid gap-4">
+                {checkedInEmployees.map((entry: any) => (
+                  <Card key={entry.id} className="p-4 bg-gradient-to-br from-green-500/5 to-green-500/10 border-green-500/20">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
+                          <LogIn className="h-5 w-5 text-green-600" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-lg">
+                            {entry.employees.first_name} {entry.employees.last_name}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {entry.employees.position && `${entry.employees.position} • `}
+                            Nr. {entry.employees.employee_number}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-green-600">
+                          {new Date(entry.check_in).toLocaleTimeString("de-DE", {
+                            hour: "2-digit",
+                            minute: "2-digit"
+                          })}
+                        </p>
+                        <p className="text-sm text-muted-foreground">Eingestempelt</p>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </Card>
+        )}
       </div>
     </div>
   );
