@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Scan, CheckCircle, XCircle, Clock, CalendarDays, LogOut, MapPin } from "lucide-react";
+import { Scan, CheckCircle, XCircle, Clock, CalendarDays, LogOut, MapPin, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import VacationRequest from "@/components/terminal/VacationRequest";
 import { TerminalLogin } from "@/components/terminal/TerminalLogin";
 import { checkGeofence, formatDistance } from "@/utils/geolocation";
+import { BrowserMultiFormatReader } from "@zxing/library";
 
 const Terminal = () => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -22,13 +23,67 @@ const Terminal = () => {
     geofence_radius_meters: number | null;
   } | null>(null);
   const [barcode, setBarcode] = useState("");
+  const [scanMode, setScanMode] = useState<'input' | 'camera'>('input');
+  const [isCameraActive, setIsCameraActive] = useState(false);
   const barcodeInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
 
   useEffect(() => {
-    if (isLoggedIn && barcodeInputRef.current) {
+    if (isLoggedIn && scanMode === 'input' && barcodeInputRef.current) {
       barcodeInputRef.current.focus();
     }
-  }, [isLoggedIn]);
+    
+    return () => {
+      stopCamera();
+    };
+  }, [isLoggedIn, scanMode]);
+
+  const startCamera = async () => {
+    try {
+      setIsCameraActive(true);
+      const codeReader = new BrowserMultiFormatReader();
+      codeReaderRef.current = codeReader;
+
+      const videoInputDevices = await codeReader.listVideoInputDevices();
+      if (videoInputDevices.length === 0) {
+        toast.error("Keine Kamera gefunden");
+        setIsCameraActive(false);
+        return;
+      }
+
+      // Use the first available camera
+      const selectedDeviceId = videoInputDevices[0].deviceId;
+
+      codeReader.decodeFromVideoDevice(
+        selectedDeviceId,
+        videoRef.current!,
+        (result, error) => {
+          if (result) {
+            const scannedCode = result.getText();
+            console.log("Barcode detected:", scannedCode);
+            handleBarcodeSubmit(scannedCode);
+            stopCamera();
+          }
+          if (error && error.name !== 'NotFoundException') {
+            console.error("Barcode scan error:", error);
+          }
+        }
+      );
+    } catch (error) {
+      console.error("Camera error:", error);
+      toast.error("Kamera konnte nicht gestartet werden");
+      setIsCameraActive(false);
+    }
+  };
+
+  const stopCamera = () => {
+    if (codeReaderRef.current) {
+      codeReaderRef.current.reset();
+      codeReaderRef.current = null;
+    }
+    setIsCameraActive(false);
+  };
 
   const handleBarcodeSubmit = async (scannedBarcode: string) => {
     if (!scannedBarcode.trim() || isProcessing) return;
@@ -221,34 +276,90 @@ const Terminal = () => {
           <div className="space-y-8">
             <div className="text-center space-y-4">
               <div className="mx-auto w-32 h-32 rounded-full bg-primary/10 flex items-center justify-center">
-                <Scan className="h-16 w-16 text-primary animate-pulse" />
+                {scanMode === 'camera' ? (
+                  <Camera className="h-16 w-16 text-primary animate-pulse" />
+                ) : (
+                  <Scan className="h-16 w-16 text-primary animate-pulse" />
+                )}
               </div>
-              <h2 className="text-3xl font-bold">Barcode scannen</h2>
+              <h2 className="text-3xl font-bold">
+                {scanMode === 'camera' ? 'Barcode mit Kamera scannen' : 'Barcode scannen'}
+              </h2>
               <p className="text-xl text-muted-foreground">
-                Bitte scannen Sie Ihren Mitarbeiter-Barcode
+                {scanMode === 'camera' 
+                  ? 'Halten Sie den Barcode vor die Kamera' 
+                  : 'Bitte scannen Sie Ihren Mitarbeiter-Barcode'}
               </p>
             </div>
 
-            <div className="space-y-4">
-              <Input
-                ref={barcodeInputRef}
-                type="text"
-                value={barcode}
-                onChange={(e) => setBarcode(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    handleBarcodeSubmit(barcode);
+            <div className="flex gap-2 justify-center">
+              <Button
+                variant={scanMode === 'input' ? 'default' : 'outline'}
+                onClick={() => {
+                  setScanMode('input');
+                  stopCamera();
+                }}
+                disabled={isProcessing}
+              >
+                <Scan className="h-4 w-4 mr-2" />
+                Scanner
+              </Button>
+              <Button
+                variant={scanMode === 'camera' ? 'default' : 'outline'}
+                onClick={() => {
+                  setScanMode('camera');
+                  if (!isCameraActive) {
+                    startCamera();
                   }
                 }}
-                className="w-full h-16 text-center text-2xl font-mono"
-                placeholder="Barcode wird hier angezeigt..."
                 disabled={isProcessing}
-                autoFocus
-              />
-              <p className="text-sm text-muted-foreground text-center">
-                Der Barcode-Scanner fügt den Code automatisch ein
-              </p>
+              >
+                <Camera className="h-4 w-4 mr-2" />
+                Kamera
+              </Button>
             </div>
+
+            {scanMode === 'input' ? (
+              <div className="space-y-4">
+                <Input
+                  ref={barcodeInputRef}
+                  type="text"
+                  value={barcode}
+                  onChange={(e) => setBarcode(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      handleBarcodeSubmit(barcode);
+                    }
+                  }}
+                  className="w-full h-16 text-center text-2xl font-mono"
+                  placeholder="Barcode wird hier angezeigt..."
+                  disabled={isProcessing}
+                  autoFocus
+                />
+                <p className="text-sm text-muted-foreground text-center">
+                  Der Barcode-Scanner fügt den Code automatisch ein
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
+                  <video
+                    ref={videoRef}
+                    className="w-full h-full object-cover"
+                    autoPlay
+                    playsInline
+                  />
+                  {!isCameraActive && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                      <p className="text-muted-foreground">Kamera wird gestartet...</p>
+                    </div>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground text-center">
+                  Der Barcode wird automatisch erkannt
+                </p>
+              </div>
+            )}
 
             {isProcessing && (
               <div className="text-center">
