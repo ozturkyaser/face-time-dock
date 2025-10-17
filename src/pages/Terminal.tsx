@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Scan, CheckCircle, XCircle, Clock, CalendarDays, Camera, LogIn, LogOut, Users } from "lucide-react";
+import { Scan, CheckCircle, XCircle, Clock, CalendarDays, Camera, LogIn, LogOut, Users, SwitchCamera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,8 @@ const Terminal = () => {
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [scanningEnabled, setScanningEnabled] = useState(true);
   const [checkedInEmployees, setCheckedInEmployees] = useState<any[]>([]);
+  const [cameraFacing, setCameraFacing] = useState<'front' | 'back'>('back');
+  const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
@@ -120,12 +122,24 @@ const Terminal = () => {
         return;
       }
 
-      const backCamera = videoInputDevices.find(device => 
-        device.label.toLowerCase().includes('back') || 
-        device.label.toLowerCase().includes('rear') ||
-        device.label.toLowerCase().includes('environment')
-      );
-      const selectedDeviceId = backCamera?.deviceId || videoInputDevices[0].deviceId;
+      setAvailableCameras(videoInputDevices);
+
+      let selectedDevice;
+      if (cameraFacing === 'back') {
+        selectedDevice = videoInputDevices.find(device => 
+          device.label.toLowerCase().includes('back') || 
+          device.label.toLowerCase().includes('rear') ||
+          device.label.toLowerCase().includes('environment')
+        );
+      } else {
+        selectedDevice = videoInputDevices.find(device => 
+          device.label.toLowerCase().includes('front') || 
+          device.label.toLowerCase().includes('user') ||
+          device.label.toLowerCase().includes('face')
+        );
+      }
+      
+      const selectedDeviceId = selectedDevice?.deviceId || videoInputDevices[0].deviceId;
 
       console.log("Decoding from video device...");
       await codeReader.decodeFromVideoDevice(
@@ -419,7 +433,7 @@ const Terminal = () => {
               </p>
             </div>
 
-            <div className="flex gap-2 justify-center">
+            <div className="flex gap-2 justify-center flex-wrap">
               <Button
                 variant={scanMode === 'camera' ? 'default' : 'outline'}
                 onClick={() => {
@@ -444,6 +458,21 @@ const Terminal = () => {
                 <Scan className="h-4 w-4 mr-2" />
                 Scanner
               </Button>
+              {scanMode === 'camera' && availableCameras.length > 1 && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setCameraFacing(prev => prev === 'back' ? 'front' : 'back');
+                    if (isCameraActive) {
+                      startCamera();
+                    }
+                  }}
+                  disabled={isProcessing}
+                >
+                  <SwitchCamera className="h-4 w-4 mr-2" />
+                  {cameraFacing === 'back' ? 'Vorne' : 'Hinten'}
+                </Button>
+              )}
             </div>
 
             {scanMode === 'input' ? (
