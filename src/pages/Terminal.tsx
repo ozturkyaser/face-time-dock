@@ -21,6 +21,8 @@ const Terminal = () => {
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
+  const scanningEnabledRef = useRef(true);
+  const isProcessingRef = useRef(false);
 
   useEffect(() => {
     if (scanMode === 'input' && barcodeInputRef.current) {
@@ -101,10 +103,11 @@ const Terminal = () => {
         videoRef.current!,
         (result, error) => {
           if (result) {
-            console.log("QR Code detected, scanningEnabled:", scanningEnabled);
-            if (scanningEnabled && !isProcessing) {
+            console.log("QR Code detected, scanningEnabled:", scanningEnabledRef.current, "isProcessing:", isProcessingRef.current);
+            if (scanningEnabledRef.current && !isProcessingRef.current) {
               const scannedCode = result.getText();
               console.log("Processing barcode:", scannedCode);
+              scanningEnabledRef.current = false;
               setScanningEnabled(false);
               handleBarcodeSubmit(scannedCode);
             } else {
@@ -155,7 +158,9 @@ const Terminal = () => {
   const handleBarcodeSubmit = async (scannedBarcode: string) => {
     if (!scannedBarcode.trim() || isProcessing) return;
 
+    console.log("handleBarcodeSubmit called, setting isProcessing to true");
     setIsProcessing(true);
+    isProcessingRef.current = true;
     stopCamera(); // Kamera ausschalten
 
     try {
@@ -172,7 +177,12 @@ const Terminal = () => {
         toast.error("Fehler bei der Datenbankabfrage");
         setBarcode("");
         setIsProcessing(false);
-        if (scanMode === 'camera') startCamera(); // Kamera wieder einschalten bei Fehler
+        isProcessingRef.current = false;
+        if (scanMode === 'camera') {
+          scanningEnabledRef.current = true;
+          setScanningEnabled(true);
+          startCamera();
+        }
         return;
       }
 
@@ -183,7 +193,12 @@ const Terminal = () => {
         });
         setBarcode("");
         setIsProcessing(false);
-        if (scanMode === 'camera') startCamera(); // Kamera wieder einschalten bei Fehler
+        isProcessingRef.current = false;
+        if (scanMode === 'camera') {
+          scanningEnabledRef.current = true;
+          setScanningEnabled(true);
+          startCamera();
+        }
         return;
       }
 
@@ -194,7 +209,12 @@ const Terminal = () => {
       toast.error("Fehler bei der Anmeldung");
       setBarcode("");
       setIsProcessing(false);
-      if (scanMode === 'camera') startCamera(); // Kamera wieder einschalten bei Fehler
+      isProcessingRef.current = false;
+      if (scanMode === 'camera') {
+        scanningEnabledRef.current = true;
+        setScanningEnabled(true);
+        startCamera();
+      }
     }
   };
 
@@ -260,18 +280,19 @@ const Terminal = () => {
   };
 
   const handleConfirmationClose = () => {
-    console.log("Closing confirmation, resetting states...");
+    console.log("Closing confirmation, resetting all states...");
     setShowConfirmation(false);
     setConfirmationData(null);
-    
-    // Reset all states before restarting camera
     setIsProcessing(false);
+    isProcessingRef.current = false;
     
-    // Small delay to ensure states are updated
+    // Reset scanning state
+    console.log("Setting scanningEnabled to true");
+    scanningEnabledRef.current = true;
+    setScanningEnabled(true);
+    
+    // Small delay to ensure clean state before restarting camera
     setTimeout(() => {
-      console.log("Setting scanningEnabled to true");
-      setScanningEnabled(true);
-      
       if (scanMode === 'camera') {
         console.log("Restarting camera after confirmation");
         startCamera();
