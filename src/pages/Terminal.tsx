@@ -677,7 +677,7 @@ const Terminal = () => {
             <Card className="bg-muted/50 border-dashed">
               <CardContent className="py-4">
                 <p className="text-center text-sm text-muted-foreground">
-                  💡 <strong>Tipp:</strong> Nach dem QR-Scan können Sie zwischen Ein-/Ausstempeln oder Urlaubsantrag wählen
+                  💡 <strong>Tipp:</strong> QR-Code scannen für Ein-/Ausstempeln oder Urlaubsantrag
                 </p>
               </CardContent>
             </Card>
