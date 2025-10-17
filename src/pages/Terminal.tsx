@@ -41,23 +41,10 @@ const Terminal = () => {
       console.log("Starting camera...");
       
       // First cleanup any existing camera
-      if (codeReaderRef.current) {
-        console.log("Cleaning up existing camera reader");
-        codeReaderRef.current.reset();
-        codeReaderRef.current = null;
-      }
-
-      // Request camera with high resolution and autofocus
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          facingMode: "environment",
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        } 
-      });
+      stopCamera();
       
-      // Stop the permission stream immediately
-      stream.getTracks().forEach(track => track.stop());
+      // Wait a bit to ensure cleanup is complete
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       const codeReader = new BrowserMultiFormatReader();
       
@@ -65,7 +52,6 @@ const Terminal = () => {
       const hints = new Map();
       const { DecodeHintType, BarcodeFormat } = await import('@zxing/library');
       
-      // Specify common barcode formats
       hints.set(DecodeHintType.POSSIBLE_FORMATS, [
         BarcodeFormat.CODE_128,
         BarcodeFormat.CODE_39,
@@ -76,7 +62,6 @@ const Terminal = () => {
         BarcodeFormat.QR_CODE
       ]);
       
-      // Enable more thorough scanning
       hints.set(DecodeHintType.TRY_HARDER, true);
       
       codeReader.hints = hints;
@@ -89,7 +74,6 @@ const Terminal = () => {
         return;
       }
 
-      // Prefer back camera
       const backCamera = videoInputDevices.find(device => 
         device.label.toLowerCase().includes('back') || 
         device.label.toLowerCase().includes('rear') ||
@@ -114,7 +98,6 @@ const Terminal = () => {
               console.log("Scan ignored - already processing or disabled");
             }
           }
-          // Only log non-NotFoundException errors
           if (error && error.name !== 'NotFoundException') {
             console.error("Barcode scan error:", error);
           }
@@ -142,6 +125,18 @@ const Terminal = () => {
 
   const stopCamera = () => {
     console.log("Stopping camera...");
+    
+    // Stop video element streams directly
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(track => {
+        track.stop();
+        console.log("Stopped track:", track.kind);
+      });
+      videoRef.current.srcObject = null;
+    }
+    
+    // Reset the code reader
     if (codeReaderRef.current) {
       try {
         codeReaderRef.current.reset();
@@ -151,6 +146,7 @@ const Terminal = () => {
       }
       codeReaderRef.current = null;
     }
+    
     setIsCameraActive(false);
     console.log("Camera stopped");
   };
