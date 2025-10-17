@@ -36,6 +36,15 @@ const Terminal = () => {
 
   const startCamera = async () => {
     try {
+      console.log("Starting camera...");
+      
+      // First cleanup any existing camera
+      if (codeReaderRef.current) {
+        console.log("Cleaning up existing camera reader");
+        codeReaderRef.current.reset();
+        codeReaderRef.current = null;
+      }
+
       // Request camera with high resolution and autofocus
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
@@ -48,7 +57,6 @@ const Terminal = () => {
       // Stop the permission stream immediately
       stream.getTracks().forEach(track => track.stop());
 
-      setIsCameraActive(true);
       const codeReader = new BrowserMultiFormatReader();
       
       // Set hints for better barcode detection
@@ -87,6 +95,7 @@ const Terminal = () => {
       );
       const selectedDeviceId = backCamera?.deviceId || videoInputDevices[0].deviceId;
 
+      console.log("Decoding from video device...");
       await codeReader.decodeFromVideoDevice(
         selectedDeviceId,
         videoRef.current!,
@@ -103,6 +112,9 @@ const Terminal = () => {
           }
         }
       );
+      
+      setIsCameraActive(true);
+      console.log("Camera started successfully");
     } catch (error: any) {
       console.error("Camera error:", error);
       if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
@@ -121,11 +133,18 @@ const Terminal = () => {
   };
 
   const stopCamera = () => {
+    console.log("Stopping camera...");
     if (codeReaderRef.current) {
-      codeReaderRef.current.reset();
+      try {
+        codeReaderRef.current.reset();
+        console.log("Camera reset successful");
+      } catch (error) {
+        console.error("Error resetting camera:", error);
+      }
       codeReaderRef.current = null;
     }
     setIsCameraActive(false);
+    console.log("Camera stopped");
   };
 
   const handleBarcodeSubmit = async (scannedBarcode: string) => {
@@ -236,13 +255,19 @@ const Terminal = () => {
   };
 
   const handleConfirmationClose = () => {
+    console.log("Closing confirmation, restarting camera...");
     setShowConfirmation(false);
     setConfirmationData(null);
     setIsProcessing(false);
     setScanningEnabled(true);
-    if (scanMode === 'camera') {
-      startCamera(); // Kamera wieder einschalten
-    }
+    
+    // Small delay before restarting camera to ensure clean state
+    setTimeout(() => {
+      if (scanMode === 'camera') {
+        console.log("Attempting to restart camera");
+        startCamera();
+      }
+    }, 100);
   };
 
   return (
