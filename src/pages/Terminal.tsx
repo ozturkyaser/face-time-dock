@@ -1,27 +1,17 @@
 import { useState, useEffect, useRef } from "react";
-import { Scan, CheckCircle, XCircle, Clock, CalendarDays, LogOut, MapPin, Camera } from "lucide-react";
+import { Scan, CheckCircle, XCircle, Clock, CalendarDays, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import VacationRequest from "@/components/terminal/VacationRequest";
-import { TerminalLogin } from "@/components/terminal/TerminalLogin";
-import { checkGeofence, formatDistance } from "@/utils/geolocation";
 import { BrowserMultiFormatReader } from "@zxing/library";
 
 const Terminal = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastCheckIn, setLastCheckIn] = useState<any>(null);
   const [showVacationRequest, setShowVacationRequest] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [terminalLocation, setTerminalLocation] = useState<{
-    id: string;
-    name: string;
-    latitude: number | null;
-    longitude: number | null;
-    geofence_radius_meters: number | null;
-  } | null>(null);
   const [barcode, setBarcode] = useState("");
   const [scanMode, setScanMode] = useState<'input' | 'camera'>('input');
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -30,14 +20,14 @@ const Terminal = () => {
   const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
 
   useEffect(() => {
-    if (isLoggedIn && scanMode === 'input' && barcodeInputRef.current) {
+    if (scanMode === 'input' && barcodeInputRef.current) {
       barcodeInputRef.current.focus();
     }
     
     return () => {
       stopCamera();
     };
-  }, [isLoggedIn, scanMode]);
+  }, [scanMode]);
 
   const startCamera = async () => {
     try {
@@ -113,41 +103,6 @@ const Terminal = () => {
 
     setIsProcessing(true);
 
-    // Check geofencing if configured
-    if (terminalLocation?.latitude && terminalLocation?.longitude) {
-      try {
-        const geofenceResult = await checkGeofence(
-          terminalLocation.latitude,
-          terminalLocation.longitude,
-          terminalLocation.geofence_radius_meters
-        );
-
-        if (!geofenceResult.allowed) {
-          const distanceMsg = geofenceResult.distance
-            ? ` Sie sind ${formatDistance(geofenceResult.distance)} vom Standort entfernt.`
-            : "";
-          
-          toast.error("Standortprüfung fehlgeschlagen", {
-            icon: <MapPin className="h-5 w-5 text-destructive" />,
-            description: geofenceResult.error || `Sie befinden sich außerhalb des erlaubten Bereichs.${distanceMsg}`,
-            duration: 5000
-          });
-          setIsProcessing(false);
-          setBarcode("");
-          return;
-        }
-      } catch (error) {
-        console.error("Geofence error:", error);
-        toast.error("Standortprüfung fehlgeschlagen", {
-          description: "Bitte aktivieren Sie die Standortfreigabe in Ihrem Browser",
-          duration: 5000
-        });
-        setIsProcessing(false);
-        setBarcode("");
-        return;
-      }
-    }
-
     try {
       // Find employee by barcode
       const { data: employee, error } = await supabase
@@ -155,7 +110,6 @@ const Terminal = () => {
         .select("*")
         .eq("barcode", scannedBarcode)
         .eq("is_active", true)
-        .eq("location_id", terminalLocation?.id)
         .single();
 
       if (error || !employee) {
@@ -226,41 +180,6 @@ const Terminal = () => {
     }
   };
 
-  const handleLoginSuccess = async (terminalId: string, locationId: string, locationName: string) => {
-    // Load location details including geofencing data
-    const { data: locationData } = await supabase
-      .from("locations")
-      .select("id, name, latitude, longitude, geofence_radius_meters")
-      .eq("id", locationId)
-      .single();
-
-    if (locationData) {
-      setTerminalLocation(locationData);
-    } else {
-      setTerminalLocation({ 
-        id: locationId, 
-        name: locationName,
-        latitude: null,
-        longitude: null,
-        geofence_radius_meters: null
-      });
-    }
-    setIsLoggedIn(true);
-  };
-
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setTerminalLocation(null);
-    setLastCheckIn(null);
-    setBarcode("");
-    toast.success("Abgemeldet");
-  };
-
-  if (!isLoggedIn) {
-    return <TerminalLogin onLoginSuccess={handleLoginSuccess} />;
-  }
-
-  // Barcode Scanner View
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 p-8">
       {showVacationRequest && (
@@ -272,27 +191,12 @@ const Terminal = () => {
 
       <div className="max-w-4xl mx-auto space-y-8">
         <div className="text-center space-y-2">
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex-1" />
-            <div className="flex-1 text-center">
-              <h1 className="text-5xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                Zeiterfassung Terminal
-              </h1>
-              <p className="text-xl text-muted-foreground">
-                Standort: {terminalLocation?.name}
-              </p>
-            </div>
-            <div className="flex-1 flex justify-end">
-              <Button
-                variant="outline"
-                onClick={handleLogout}
-                className="shadow-md"
-              >
-                <LogOut className="h-4 w-4 mr-2" />
-                Abmelden
-              </Button>
-            </div>
-          </div>
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            Zeiterfassung Terminal
+          </h1>
+          <p className="text-xl text-muted-foreground">
+            Scannen Sie Ihren Barcode zum An- oder Abmelden
+          </p>
         </div>
 
         <Card className="p-12 shadow-xl">
