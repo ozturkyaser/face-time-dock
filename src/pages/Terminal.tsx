@@ -12,6 +12,8 @@ const Terminal = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastCheckIn, setLastCheckIn] = useState<any>(null);
   const [showVacationRequest, setShowVacationRequest] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [confirmationData, setConfirmationData] = useState<any>(null);
   const [barcode, setBarcode] = useState("");
   const [scanMode, setScanMode] = useState<'input' | 'camera'>('camera');
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -168,6 +170,8 @@ const Terminal = () => {
   };
 
   const handleCheckInOut = async (employee: any) => {
+    const currentTime = new Date().toISOString();
+    
     // Check if there's an open time entry
     const { data: openEntries } = await supabase
       .from("time_entries")
@@ -177,11 +181,14 @@ const Terminal = () => {
       .order("check_in", { ascending: false })
       .limit(1);
 
+    let actionType = "";
+    let actionTime = currentTime;
+
     if (openEntries && openEntries.length > 0) {
       // Check out
       const { error } = await supabase
         .from("time_entries")
-        .update({ check_out: new Date().toISOString() })
+        .update({ check_out: currentTime })
         .eq("id", openEntries[0].id);
 
       if (error) {
@@ -189,17 +196,17 @@ const Terminal = () => {
         return;
       }
 
+      actionType = "out";
       toast.success(`${employee.first_name} ${employee.last_name} erfolgreich ausgestempelt`, {
         icon: <XCircle className="h-5 w-5 text-destructive" />
       });
-      setLastCheckIn({ ...employee, type: "out" });
     } else {
       // Check in
       const { error } = await supabase
         .from("time_entries")
         .insert({
           employee_id: employee.id,
-          check_in: new Date().toISOString()
+          check_in: currentTime
         });
 
       if (error) {
@@ -207,11 +214,26 @@ const Terminal = () => {
         return;
       }
 
+      actionType = "in";
       toast.success(`${employee.first_name} ${employee.last_name} erfolgreich eingestempelt`, {
         icon: <CheckCircle className="h-5 w-5 text-success" />
       });
-      setLastCheckIn({ ...employee, type: "in" });
     }
+
+    // Show confirmation screen
+    setConfirmationData({
+      employee,
+      type: actionType,
+      time: actionTime
+    });
+    setShowConfirmation(true);
+    setLastCheckIn({ ...employee, type: actionType });
+
+    // Reset after 5 seconds
+    setTimeout(() => {
+      setShowConfirmation(false);
+      setConfirmationData(null);
+    }, 5000);
   };
 
   return (
@@ -221,6 +243,46 @@ const Terminal = () => {
           onComplete={() => setShowVacationRequest(false)}
           onCancel={() => setShowVacationRequest(false)}
         />
+      )}
+
+      {showConfirmation && confirmationData && (
+        <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-8">
+          <Card className="w-full max-w-2xl p-12 shadow-2xl">
+            <div className="text-center space-y-8">
+              <div className="mx-auto w-32 h-32 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                {confirmationData.type === "in" ? (
+                  <CheckCircle className="h-16 w-16 text-white" />
+                ) : (
+                  <XCircle className="h-16 w-16 text-white" />
+                )}
+              </div>
+              
+              <div className="space-y-4">
+                <h2 className="text-5xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                  {confirmationData.employee.first_name} {confirmationData.employee.last_name}
+                </h2>
+                <p className="text-3xl font-semibold">
+                  {confirmationData.type === "in" ? "Eingestempelt" : "Ausgestempelt"}
+                </p>
+                <p className="text-6xl font-bold text-primary">
+                  {new Date(confirmationData.time).toLocaleTimeString("de-DE", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit"
+                  })}
+                </p>
+                <p className="text-2xl text-muted-foreground">
+                  {new Date(confirmationData.time).toLocaleDateString("de-DE", {
+                    weekday: "long",
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric"
+                  })}
+                </p>
+              </div>
+            </div>
+          </Card>
+        </div>
       )}
 
       <div className="max-w-4xl mx-auto space-y-8">
