@@ -160,13 +160,17 @@ const Terminal = () => {
 
       await handleCheckInOut(employee);
       setBarcode("");
+      
+      // Wait 5 seconds before allowing next scan
+      setTimeout(() => {
+        setIsProcessing(false);
+      }, 5000);
     } catch (error) {
       console.error("Error during barcode authentication:", error);
       toast.error("Fehler bei der Anmeldung");
       setBarcode("");
+      setIsProcessing(false);
     }
-    
-    setIsProcessing(false);
   };
 
   const handleCheckInOut = async (employee: any) => {
