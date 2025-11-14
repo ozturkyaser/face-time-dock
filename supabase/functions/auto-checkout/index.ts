@@ -17,11 +17,26 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
 
+    // Get current time in Berlin timezone (UTC+1/UTC+2)
+    const now = new Date()
+    const berlinTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Berlin' }))
+    const currentHour = berlinTime.getHours()
+    const currentMinute = berlinTime.getMinutes()
+    const currentDay = berlinTime.getDay() // 0 = Sunday, 6 = Saturday
+    
+    console.log('Current Berlin time:', berlinTime.toISOString(), 'Hour:', currentHour, 'Minute:', currentMinute, 'Day:', currentDay)
+
+    // Check if it's weekend (Saturday = 6, Sunday = 0)
+    const isWeekend = currentDay === 0 || currentDay === 6
+    const settingKey = isWeekend ? 'auto_checkout_time_weekend' : 'auto_checkout_time'
+
+    console.log('Is weekend:', isWeekend, 'Using setting:', settingKey)
+
     // Get configured auto-checkout time from database
     const { data: settingsData, error: settingsError } = await supabase
       .from('system_settings')
       .select('value')
-      .eq('key', 'auto_checkout_time')
+      .eq('key', settingKey)
       .single()
 
     if (settingsError) {
@@ -34,14 +49,6 @@ Deno.serve(async (req) => {
 
     console.log('Configured auto-checkout time:', configuredHour, ':', configuredMinute)
 
-    // Get current time in Berlin timezone (UTC+1/UTC+2)
-    const now = new Date()
-    const berlinTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Berlin' }))
-    const currentHour = berlinTime.getHours()
-    const currentMinute = berlinTime.getMinutes()
-    
-    console.log('Current Berlin time:', berlinTime.toISOString(), 'Hour:', currentHour, 'Minute:', currentMinute)
-
     // Only run auto-checkout at configured time
     if (currentHour !== configuredHour || currentMinute !== configuredMinute) {
       console.log('Not time for auto-checkout yet. Current time:', currentHour, ':', currentMinute, 'Configured:', configuredHour, ':', configuredMinute)
@@ -51,7 +58,8 @@ Deno.serve(async (req) => {
           currentHour, 
           currentMinute,
           configuredHour,
-          configuredMinute 
+          configuredMinute,
+          isWeekend
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
@@ -86,14 +94,17 @@ Deno.serve(async (req) => {
       const employeeData = entry.employees as any
       const defaultBreak = employeeData?.default_break_minutes || 45
       
+      const dayType = isWeekend ? 'Wochenende' : 'Wochentag'
+      const noteText = `Automatische System-Abmeldung um ${String(configuredHour).padStart(2, '0')}:${String(configuredMinute).padStart(2, '0')} Uhr (${dayType})`
+      
       const { error: updateError } = await supabase
         .from('time_entries')
         .update({
           check_out: checkoutTime.toISOString(),
           break_duration_minutes: defaultBreak,
           notes: entry.notes 
-            ? `${entry.notes} (Automatische System-Abmeldung um ${String(configuredHour).padStart(2, '0')}:${String(configuredMinute).padStart(2, '0')} Uhr)` 
-            : `Automatische System-Abmeldung um ${String(configuredHour).padStart(2, '0')}:${String(configuredMinute).padStart(2, '0')} Uhr`
+            ? `${entry.notes} (${noteText})` 
+            : noteText
         })
         .eq('id', entry.id)
 
