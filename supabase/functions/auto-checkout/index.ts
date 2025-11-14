@@ -17,6 +17,23 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
 
+    // Get configured auto-checkout time from database
+    const { data: settingsData, error: settingsError } = await supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'auto_checkout_time')
+      .single()
+
+    if (settingsError) {
+      console.error('Error fetching settings:', settingsError)
+      throw settingsError
+    }
+
+    const configuredHour = (settingsData.value as any).hour
+    const configuredMinute = (settingsData.value as any).minute
+
+    console.log('Configured auto-checkout time:', configuredHour, ':', configuredMinute)
+
     // Get current time in Berlin timezone (UTC+1/UTC+2)
     const now = new Date()
     const berlinTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Berlin' }))
@@ -25,11 +42,17 @@ Deno.serve(async (req) => {
     
     console.log('Current Berlin time:', berlinTime.toISOString(), 'Hour:', currentHour, 'Minute:', currentMinute)
 
-    // Only run auto-checkout at 19:57
-    if (currentHour !== 19 || currentMinute !== 57) {
-      console.log('Not time for auto-checkout yet. Current time:', currentHour, ':', currentMinute)
+    // Only run auto-checkout at configured time
+    if (currentHour !== configuredHour || currentMinute !== configuredMinute) {
+      console.log('Not time for auto-checkout yet. Current time:', currentHour, ':', currentMinute, 'Configured:', configuredHour, ':', configuredMinute)
       return new Response(
-        JSON.stringify({ message: 'Not time for auto-checkout', hour: currentHour, minute: currentMinute }),
+        JSON.stringify({ 
+          message: 'Not time for auto-checkout', 
+          currentHour, 
+          currentMinute,
+          configuredHour,
+          configuredMinute 
+        }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -54,9 +77,9 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Auto-checkout all open entries at 19:57
+    // Auto-checkout all open entries at configured time
     const checkoutTime = new Date(berlinTime)
-    checkoutTime.setHours(19, 57, 0, 0) // Set to exactly 19:57:00
+    checkoutTime.setHours(configuredHour, configuredMinute, 0, 0)
 
     const updates = []
     for (const entry of openEntries) {
@@ -69,8 +92,8 @@ Deno.serve(async (req) => {
           check_out: checkoutTime.toISOString(),
           break_duration_minutes: defaultBreak,
           notes: entry.notes 
-            ? `${entry.notes} (Automatische System-Abmeldung um 19:57 Uhr)` 
-            : 'Automatische System-Abmeldung um 19:57 Uhr'
+            ? `${entry.notes} (Automatische System-Abmeldung um ${String(configuredHour).padStart(2, '0')}:${String(configuredMinute).padStart(2, '0')} Uhr)` 
+            : `Automatische System-Abmeldung um ${String(configuredHour).padStart(2, '0')}:${String(configuredMinute).padStart(2, '0')} Uhr`
         })
         .eq('id', entry.id)
 
