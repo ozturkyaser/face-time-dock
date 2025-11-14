@@ -111,6 +111,21 @@ const VacationManagement = ({ onUpdate }: VacationManagementProps) => {
         return;
       }
 
+      // Update employee vacation days used
+      const newVacationDaysUsed = (employeeData.vacation_days_used || 0) + selectedRequest.total_days;
+      const { error: employeeUpdateError } = await supabase
+        .from("employees")
+        .update({
+          vacation_days_used: newVacationDaysUsed
+        })
+        .eq("id", selectedRequest.employee_id);
+      
+      if (employeeUpdateError) {
+        console.error("Error updating employee vacation days:", employeeUpdateError);
+        toast.error("Fehler beim Aktualisieren der Urlaubstage");
+        return;
+      }
+
       // Calculate remaining vacation days
       const vacationDaysTotal = employeeData.vacation_days_total || 30;
       const vacationDaysUsed = employeeData.vacation_days_used || 0;
