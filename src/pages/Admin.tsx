@@ -18,6 +18,7 @@ import EmployeeTimeDetails from "@/components/admin/EmployeeTimeDetails";
 import UserManagement from "@/components/admin/UserManagement";
 import QRCodePrint from "@/components/admin/QRCodePrint";
 import { SystemSettings } from "@/components/admin/SystemSettings";
+import { LoggedInUsers } from "@/components/admin/LoggedInUsers";
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -148,7 +149,7 @@ const Admin = () => {
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
           <Card className="shadow-lg hover:shadow-xl transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Mitarbeiter</CardTitle>
@@ -161,6 +162,8 @@ const Admin = () => {
               </p>
             </CardContent>
           </Card>
+
+          <LoggedInUsers />
 
           <Card className="shadow-lg hover:shadow-xl transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
