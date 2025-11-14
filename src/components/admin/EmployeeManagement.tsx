@@ -19,6 +19,8 @@ interface EmployeeManagementProps {
 
 const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
   const [employees, setEmployees] = useState<any[]>([]);
+  const [filteredEmployees, setFilteredEmployees] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<any>(null);
   const [showFaceRegistration, setShowFaceRegistration] = useState(false);
@@ -46,6 +48,23 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
     loadLocations();
   }, []);
 
+  useEffect(() => {
+    // Filter employees based on search term
+    if (searchTerm.trim() === "") {
+      setFilteredEmployees(employees);
+    } else {
+      const filtered = employees.filter(emp => 
+        emp.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        emp.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        emp.employee_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        emp.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        emp.department?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        emp.position?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredEmployees(filtered);
+    }
+  }, [searchTerm, employees]);
+
   const loadEmployees = async () => {
     const { data, error } = await supabase
       .from("employees")
@@ -57,6 +76,7 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
       return;
     }
     setEmployees(data || []);
+    setFilteredEmployees(data || []);
   };
 
   const loadLocations = async () => {
@@ -79,16 +99,37 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
     return `EMP-${timestamp}-${randomStr}`.toUpperCase();
   };
 
+  const generateEmployeeNumber = () => {
+    // Generate employee number: EMP + timestamp
+    const timestamp = Date.now().toString().slice(-8);
+    return `EMP${timestamp}`;
+  };
+
+  const generateRandomPIN = () => {
+    // Generate a random 4-digit PIN
+    return Math.floor(1000 + Math.random() * 9000).toString();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Auto-generate employee number for new employees if not provided
+    const employeeNumberValue = editingEmployee 
+      ? formData.employee_number
+      : (formData.employee_number || generateEmployeeNumber());
     
     // Auto-generate QR code for new employees if not provided
     const barcodeValue = editingEmployee 
       ? (formData.barcode || null)
       : (formData.barcode || generateUniqueCode());
     
+    // Auto-generate PIN for new employees if not provided
+    const pinValue = editingEmployee 
+      ? formData.pin
+      : (formData.pin || generateRandomPIN());
+    
     const employeeData: any = {
-      employee_number: formData.employee_number,
+      employee_number: employeeNumberValue,
       first_name: formData.first_name,
       last_name: formData.last_name || null,
       email: formData.email || null,
@@ -114,11 +155,11 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
       }
 
       // Update PIN separately if provided
-      if (formData.pin) {
+      if (formData.pin || pinValue) {
         const { error: pinError } = await supabase.functions.invoke('set-employee-pin', {
           body: { 
             employeeId: editingEmployee.id,
-            pin: formData.pin
+            pin: formData.pin || pinValue
           }
         });
 
@@ -140,12 +181,13 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
         return;
       }
 
-      // Set PIN separately if provided
-      if (formData.pin && newEmployee) {
+      // Set PIN separately if provided or use auto-generated
+      const pinToUse = formData.pin || pinValue;
+      if (pinToUse && newEmployee) {
         const { error: pinError } = await supabase.functions.invoke('set-employee-pin', {
           body: { 
             employeeId: newEmployee.id,
-            pin: formData.pin
+            pin: pinToUse
           }
         });
 
@@ -153,9 +195,16 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
           toast.error("Fehler beim Setzen der PIN");
           return;
         }
+        
+        // Show the generated PIN to the admin
+        if (!formData.pin) {
+          toast.success(`Mitarbeiter erstellt. Nr: ${employeeNumberValue}, PIN: ${pinValue}`);
+        } else {
+          toast.success("Mitarbeiter erstellt");
+        }
+      } else {
+        toast.success("Mitarbeiter erstellt");
       }
-      
-      toast.success("Mitarbeiter erstellt");
     }
 
     setIsDialogOpen(false);
@@ -332,18 +381,18 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
                   {editingEmployee ? "Mitarbeiter bearbeiten" : "Neuer Mitarbeiter"}
                 </DialogTitle>
                 <DialogDescription>
-                  Geben Sie die Mitarbeiterdaten ein
+                  Geben Sie die Mitarbeiterdaten ein. Mitarbeiternummer und PIN werden automatisch generiert.
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="employee_number">Personalnummer *</Label>
+                    <Label htmlFor="employee_number">Personalnummer</Label>
                     <Input
                       id="employee_number"
                       value={formData.employee_number}
                       onChange={(e) => setFormData({ ...formData, employee_number: e.target.value })}
-                      required
+                      placeholder="Wird automatisch generiert"
                     />
                   </div>
                   <div className="space-y-2">
@@ -465,18 +514,19 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="pin">Mitarbeiter-PIN {editingEmployee ? "(Leer lassen, um nicht zu ändern)" : "*"}</Label>
+                  <Label htmlFor="pin">Mitarbeiter-PIN {editingEmployee ? "(Leer lassen, um nicht zu ändern)" : "(Wird automatisch generiert)"}</Label>
                   <Input
                     id="pin"
                     type="password"
-                    placeholder="4-6 stellige PIN"
+                    placeholder="4-6 stellige PIN - automatisch generiert"
                     value={formData.pin}
                     onChange={(e) => setFormData({ ...formData, pin: e.target.value })}
-                    required={!editingEmployee}
                     maxLength={6}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Diese PIN wird für den Zugang zum Mitarbeiter-Portal verwendet
+                    {editingEmployee 
+                      ? "Diese PIN wird für den Zugang zum Mitarbeiter-Portal verwendet" 
+                      : "Leer lassen für automatische Generierung einer 4-stelligen PIN"}
                   </p>
                 </div>
                 <div className="flex justify-end gap-2">
@@ -494,6 +544,14 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
         </div>
       </CardHeader>
       <CardContent>
+        <div className="mb-4">
+          <Input
+            placeholder="Suche nach Name, Personalnummer, Email, Abteilung oder Position..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="max-w-md"
+          />
+        </div>
         <Table>
           <TableHeader>
             <TableRow>
@@ -509,7 +567,7 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {employees.map((employee) => (
+            {filteredEmployees.map((employee) => (
               <TableRow key={employee.id}>
                 <TableCell className="font-medium">{employee.employee_number}</TableCell>
                 <TableCell>{employee.first_name} {employee.last_name}</TableCell>

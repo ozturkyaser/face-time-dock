@@ -12,6 +12,8 @@ export const SystemSettings = () => {
   const [weekdayMinute, setWeekdayMinute] = useState("57");
   const [weekendHour, setWeekendHour] = useState("18");
   const [weekendMinute, setWeekendMinute] = useState("0");
+  const [lateHour, setLateHour] = useState("9");
+  const [lateMinute, setLateMinute] = useState("10");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -24,7 +26,7 @@ export const SystemSettings = () => {
       const { data, error } = await supabase
         .from('system_settings')
         .select('key, value')
-        .in('key', ['auto_checkout_time', 'auto_checkout_time_weekend']);
+        .in('key', ['auto_checkout_time', 'auto_checkout_time_weekend', 'late_checkin_time']);
 
       if (error) throw error;
 
@@ -36,6 +38,9 @@ export const SystemSettings = () => {
         } else if (setting.key === 'auto_checkout_time_weekend') {
           setWeekendHour(timeValue.hour.toString().padStart(2, '0'));
           setWeekendMinute(timeValue.minute.toString().padStart(2, '0'));
+        } else if (setting.key === 'late_checkin_time') {
+          setLateHour(timeValue.hour.toString().padStart(2, '0'));
+          setLateMinute(timeValue.minute.toString().padStart(2, '0'));
         }
       });
     } catch (error) {
@@ -53,10 +58,13 @@ export const SystemSettings = () => {
     const wdMinute = parseInt(weekdayMinute);
     const weHour = parseInt(weekendHour);
     const weMinute = parseInt(weekendMinute);
+    const ltHour = parseInt(lateHour);
+    const ltMinute = parseInt(lateMinute);
 
     if (
       wdHour < 0 || wdHour > 23 || wdMinute < 0 || wdMinute > 59 ||
-      weHour < 0 || weHour > 23 || weMinute < 0 || weMinute > 59
+      weHour < 0 || weHour > 23 || weMinute < 0 || weMinute > 59 ||
+      ltHour < 0 || ltHour > 23 || ltMinute < 0 || ltMinute > 59
     ) {
       toast({
         title: "Ungültige Zeit",
@@ -82,7 +90,14 @@ export const SystemSettings = () => {
             value: { hour: weHour, minute: weMinute },
             updated_at: new Date().toISOString()
           })
-          .eq('key', 'auto_checkout_time_weekend')
+          .eq('key', 'auto_checkout_time_weekend'),
+        supabase
+          .from('system_settings')
+          .update({
+            value: { hour: ltHour, minute: ltMinute },
+            updated_at: new Date().toISOString()
+          })
+          .eq('key', 'late_checkin_time')
       ];
 
       const results = await Promise.all(updates);
@@ -93,7 +108,7 @@ export const SystemSettings = () => {
 
       toast({
         title: "Erfolgreich gespeichert",
-        description: `Abmeldezeiten: Wochentag ${weekdayHour}:${weekdayMinute} Uhr, Wochenende ${weekendHour}:${weekendMinute} Uhr`,
+        description: `Einstellungen erfolgreich aktualisiert`,
       });
     } catch (error) {
       console.error('Error saving settings:', error);
@@ -175,6 +190,38 @@ export const SystemSettings = () => {
             />
             <span className="ml-2 text-muted-foreground">Uhr</span>
           </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label className="flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            Verspätungsgrenze
+          </Label>
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              min="0"
+              max="23"
+              value={lateHour}
+              onChange={(e) => setLateHour(e.target.value.padStart(2, '0'))}
+              className="w-20 text-center"
+              placeholder="HH"
+            />
+            <span className="text-lg font-semibold">:</span>
+            <Input
+              type="number"
+              min="0"
+              max="59"
+              value={lateMinute}
+              onChange={(e) => setLateMinute(e.target.value.padStart(2, '0'))}
+              className="w-20 text-center"
+              placeholder="MM"
+            />
+            <span className="ml-2 text-muted-foreground">Uhr</span>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Mitarbeiter die nach dieser Zeit einstempeln werden als verspätet markiert
+          </p>
         </div>
 
         <p className="text-sm text-muted-foreground">

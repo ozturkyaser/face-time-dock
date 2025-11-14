@@ -20,6 +20,7 @@ const TimeEntriesView = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<string>("all");
   const [editingEntry, setEditingEntry] = useState<any>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [lateCheckinTime, setLateCheckinTime] = useState({ hour: 9, minute: 10 });
   const [editFormData, setEditFormData] = useState({
     check_in_date: "",
     check_in_time: "",
@@ -30,11 +31,34 @@ const TimeEntriesView = () => {
 
   useEffect(() => {
     loadEmployees();
+    loadLateCheckinSetting();
   }, []);
 
   useEffect(() => {
     loadEntries();
   }, [timeFilter, selectedEmployee]);
+
+  const loadLateCheckinSetting = async () => {
+    const { data, error } = await supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'late_checkin_time')
+      .single();
+    
+    if (data?.value) {
+      const timeValue = data.value as { hour: number; minute: number };
+      setLateCheckinTime(timeValue);
+    }
+  };
+
+  const isLateCheckin = (checkinTime: string) => {
+    const checkin = new Date(checkinTime);
+    const checkinHour = checkin.getHours();
+    const checkinMinute = checkin.getMinutes();
+    
+    return checkinHour > lateCheckinTime.hour || 
+           (checkinHour === lateCheckinTime.hour && checkinMinute >= lateCheckinTime.minute);
+  };
 
   const loadEmployees = async () => {
     const { data, error } = await supabase
@@ -317,7 +341,7 @@ const TimeEntriesView = () => {
           </TableHeader>
           <TableBody>
             {entries.map((entry) => (
-              <TableRow key={entry.id}>
+              <TableRow key={entry.id} className={isLateCheckin(entry.check_in) ? "animate-blink bg-warning/5" : ""}>
                 <TableCell className="font-medium">
                   {entry.employees ? (
                     <>
@@ -331,7 +355,14 @@ const TimeEntriesView = () => {
                   )}
                 </TableCell>
                 <TableCell>
-                  {format(new Date(entry.check_in), "dd.MM.yyyy HH:mm", { locale: de })}
+                  <div className="flex items-center gap-2">
+                    {format(new Date(entry.check_in), "dd.MM.yyyy HH:mm", { locale: de })}
+                    {isLateCheckin(entry.check_in) && (
+                      <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20 text-xs">
+                        Verspätet
+                      </Badge>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell>
                   {entry.check_out ? (
