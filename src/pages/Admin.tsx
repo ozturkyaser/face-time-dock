@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, Clock, Calendar, DollarSign, LayoutDashboard, Scan, Trash2, ShieldCheck, LogOut, Printer } from "lucide-react";
+import { Users, Clock, Calendar, DollarSign, LayoutDashboard, Scan, Trash2, ShieldCheck, LogOut, Printer, Settings } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import MasterReset from "@/components/admin/MasterReset";
 import EmployeeTimeDetails from "@/components/admin/EmployeeTimeDetails";
 import UserManagement from "@/components/admin/UserManagement";
 import QRCodePrint from "@/components/admin/QRCodePrint";
+import { SystemSettings } from "@/components/admin/SystemSettings";
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -202,7 +203,7 @@ const Admin = () => {
         </div>
 
         <Tabs defaultValue="employees" className="space-y-6">
-          <TabsList className={`grid w-full h-auto p-1 ${isAdmin ? 'grid-cols-9' : 'grid-cols-7'}`}>
+          <TabsList className={`grid w-full h-auto p-1 ${isAdmin ? 'grid-cols-10' : 'grid-cols-7'}`}>
             <TabsTrigger value="employees" className="flex flex-col gap-1 py-3">
               <Users className="h-5 w-5" />
               <span className="text-xs sm:text-sm">Mitarbeiter</span>
@@ -231,6 +232,12 @@ const Admin = () => {
               <DollarSign className="h-5 w-5" />
               <span className="text-xs sm:text-sm">Vorschüsse</span>
             </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="settings" className="flex flex-col gap-1 py-3">
+                <Settings className="h-5 w-5" />
+                <span className="text-xs sm:text-sm">Einstellungen</span>
+              </TabsTrigger>
+            )}
             {isAdmin && (
               <TabsTrigger value="users" className="flex flex-col gap-1 py-3">
                 <ShieldCheck className="h-5 w-5" />
@@ -280,6 +287,12 @@ const Admin = () => {
           <TabsContent value="advances" className="space-y-4">
             <SalaryAdvances />
           </TabsContent>
+
+          {isAdmin && (
+            <TabsContent value="settings" className="space-y-4">
+              <SystemSettings />
+            </TabsContent>
+          )}
 
           {isAdmin && (
             <TabsContent value="users" className="space-y-4">
