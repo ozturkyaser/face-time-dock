@@ -78,13 +78,18 @@ const EmployeePortal = () => {
 
           <Card className="shadow-lg hover:shadow-xl transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Status</CardTitle>
-              <Clock className="h-5 w-5 text-accent" />
+              <CardTitle className="text-sm font-medium">Urlaubstage</CardTitle>
+              <Calendar className="h-5 w-5 text-accent" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">✓</div>
+              <div className="text-2xl font-bold">
+                {(employee.vacation_days_total || 30) - (employee.vacation_days_used || 0)}
+              </div>
               <p className="text-xs text-muted-foreground">
-                Aktiv seit {new Date(employee.employment_start_date).getFullYear()}
+                von {employee.vacation_days_total || 30} Tagen verfügbar
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {employee.vacation_days_used || 0} Tage verbraucht
               </p>
             </CardContent>
           </Card>
