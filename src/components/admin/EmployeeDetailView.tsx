@@ -29,6 +29,8 @@ interface Employee {
   expected_daily_hours: number;
   hourly_rate: number | null;
   default_break_minutes: number;
+  vacation_days_total: number | null;
+  vacation_days_used: number | null;
 }
 
 const EmployeeDetailView = ({ employeeId, employeeName }: EmployeeDetailViewProps) => {
@@ -63,7 +65,7 @@ const EmployeeDetailView = ({ employeeId, employeeName }: EmployeeDetailViewProp
   const loadEmployee = async () => {
     const { data, error } = await supabase
       .from("employees")
-      .select("id, employee_number, first_name, last_name, department, position, expected_daily_hours, hourly_rate, default_break_minutes")
+      .select("id, employee_number, first_name, last_name, department, position, expected_daily_hours, hourly_rate, default_break_minutes, vacation_days_total, vacation_days_used")
       .eq("id", employeeId)
       .single();
     
@@ -259,13 +261,33 @@ const EmployeeDetailView = ({ employeeId, employeeName }: EmployeeDetailViewProp
       <Card className="shadow-lg">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <div>
+            <div className="flex-1">
               <CardTitle>
                 {employee.first_name} {employee.last_name}
               </CardTitle>
               <CardDescription>
                 {employee.employee_number} • {employee.position}
               </CardDescription>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <div className="text-sm text-muted-foreground">Verfügbare Urlaubstage</div>
+                <div className="text-2xl font-bold text-primary">
+                  {(employee.vacation_days_total || 30) - (employee.vacation_days_used || 0)}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  von {employee.vacation_days_total || 30} Tagen
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm text-muted-foreground">Verbrauchte Urlaubstage</div>
+                <div className="text-2xl font-bold text-accent">
+                  {employee.vacation_days_used || 0}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Tage
+                </div>
+              </div>
             </div>
           </div>
         </CardHeader>
