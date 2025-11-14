@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, Clock, Calendar, DollarSign, LayoutDashboard, Scan, Trash2, ShieldCheck, LogOut, Printer, Settings } from "lucide-react";
+import { Users, Clock, Calendar, DollarSign, LayoutDashboard, Scan, ShieldCheck, LogOut, Printer, Settings } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,6 @@ import VacationManagement from "@/components/admin/VacationManagement";
 import SalaryAdvances from "@/components/admin/SalaryAdvances";
 import ManualTimeTracking from "@/components/admin/ManualTimeTracking";
 import FaceProfileManagement from "@/components/admin/FaceProfileManagement";
-import MasterReset from "@/components/admin/MasterReset";
 import EmployeeTimeDetails from "@/components/admin/EmployeeTimeDetails";
 import UserManagement from "@/components/admin/UserManagement";
 import QRCodePrint from "@/components/admin/QRCodePrint";
@@ -247,12 +246,6 @@ const Admin = () => {
                 <span className="text-xs sm:text-sm">Benutzer</span>
               </TabsTrigger>
             )}
-            {isAdmin && (
-              <TabsTrigger value="danger" className="flex flex-col gap-1 py-3 text-destructive">
-                <Trash2 className="h-5 w-5" />
-                <span className="text-xs sm:text-sm">Danger</span>
-              </TabsTrigger>
-            )}
           </TabsList>
 
           <TabsContent value="employees" className="space-y-4">
@@ -300,12 +293,6 @@ const Admin = () => {
           {isAdmin && (
             <TabsContent value="users" className="space-y-4">
               <UserManagement />
-            </TabsContent>
-          )}
-
-          {isAdmin && (
-            <TabsContent value="danger" className="space-y-4">
-              <MasterReset />
             </TabsContent>
           )}
         </Tabs>
