@@ -89,14 +89,6 @@ export const TerminalManagement = () => {
     setLocations(data || []);
   };
 
-  const hashPassword = async (password: string): Promise<string> => {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(password);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -108,8 +100,28 @@ export const TerminalManagement = () => {
         is_active: isActive,
       };
 
+      // If password changed, use Edge Function to hash it
       if (password) {
-        updateData.password_hash = await hashPassword(password);
+        const { data: authData } = await supabase.auth.getSession();
+        
+        const { error: hashError } = await supabase.functions.invoke(
+          'set-terminal-password',
+          {
+            body: { 
+              terminalId: editingTerminal.id,
+              password: password 
+            },
+            headers: {
+              Authorization: `Bearer ${authData.session?.access_token}`
+            }
+          }
+        );
+
+        if (hashError) {
+          console.error("Error hashing password:", hashError);
+          toast.error("Fehler beim Verschlüsseln des Passworts");
+          return;
+        }
       }
 
       const { error } = await supabase
@@ -129,20 +141,46 @@ export const TerminalManagement = () => {
         return;
       }
 
-      const passwordHash = await hashPassword(password);
-
-      const { error } = await supabase
+      // For new terminals, use Edge Function to hash password
+      const { data: authData } = await supabase.auth.getSession();
+      
+      // First insert terminal with placeholder password
+      const { data: newTerminal, error: insertError } = await supabase
         .from("terminals")
         .insert([{
           name,
           username,
-          password_hash: passwordHash,
+          password_hash: 'PLACEHOLDER',
           location_id: locationId,
           is_active: isActive,
-        }]);
+        }])
+        .select()
+        .single();
 
-      if (error) {
+      if (insertError || !newTerminal) {
         toast.error("Fehler beim Erstellen des Terminals");
+        return;
+      }
+
+      // Now set the real password using Edge Function
+      const { error: hashError } = await supabase.functions.invoke(
+        'set-terminal-password',
+        {
+          body: { 
+            terminalId: newTerminal.id,
+            password: password 
+          },
+          headers: {
+            Authorization: `Bearer ${authData.session?.access_token}`
+          }
+        }
+      );
+
+      if (hashError) {
+        // Clean up - delete the terminal we just created
+        await supabase.from("terminals").delete().eq("id", newTerminal.id);
+        console.error("Error hashing password:", hashError);
+        toast.error("Fehler beim Verschlüsseln des Passworts");
         return;
       }
 
