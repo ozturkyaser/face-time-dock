@@ -71,6 +71,21 @@ const EmployeeVacations = ({ employeeId }: EmployeeVacationsProps) => {
         return;
       }
 
+      // Update employee vacation days used
+      const newVacationDaysUsed = (employee.vacation_days_used || 0) + vacation.alternative_total_days;
+      const { error: employeeUpdateError } = await supabase
+        .from("employees")
+        .update({
+          vacation_days_used: newVacationDaysUsed
+        })
+        .eq("id", vacation.employee_id);
+      
+      if (employeeUpdateError) {
+        console.error("Error updating employee vacation days:", employeeUpdateError);
+        toast.error("Fehler beim Aktualisieren der Urlaubstage");
+        return;
+      }
+
       // Get location CI data if available
       let locationData = null;
       if (employee.location_id) {
