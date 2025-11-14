@@ -21,14 +21,15 @@ Deno.serve(async (req) => {
     const now = new Date()
     const berlinTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Berlin' }))
     const currentHour = berlinTime.getHours()
+    const currentMinute = berlinTime.getMinutes()
     
-    console.log('Current Berlin time:', berlinTime.toISOString(), 'Hour:', currentHour)
+    console.log('Current Berlin time:', berlinTime.toISOString(), 'Hour:', currentHour, 'Minute:', currentMinute)
 
-    // Only run auto-checkout at 20:00 (8 PM)
-    if (currentHour !== 20) {
-      console.log('Not time for auto-checkout yet. Current hour:', currentHour)
+    // Only run auto-checkout at 19:57
+    if (currentHour !== 19 || currentMinute !== 57) {
+      console.log('Not time for auto-checkout yet. Current time:', currentHour, ':', currentMinute)
       return new Response(
-        JSON.stringify({ message: 'Not time for auto-checkout', hour: currentHour }),
+        JSON.stringify({ message: 'Not time for auto-checkout', hour: currentHour, minute: currentMinute }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -53,9 +54,9 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Auto-checkout all open entries at 20:00
+    // Auto-checkout all open entries at 19:57
     const checkoutTime = new Date(berlinTime)
-    checkoutTime.setHours(20, 0, 0, 0) // Set to exactly 20:00:00
+    checkoutTime.setHours(19, 57, 0, 0) // Set to exactly 19:57:00
 
     const updates = []
     for (const entry of openEntries) {
@@ -68,8 +69,8 @@ Deno.serve(async (req) => {
           check_out: checkoutTime.toISOString(),
           break_duration_minutes: defaultBreak,
           notes: entry.notes 
-            ? `${entry.notes} (Automatische System-Abmeldung um 20:00 Uhr)` 
-            : 'Automatische System-Abmeldung um 20:00 Uhr'
+            ? `${entry.notes} (Automatische System-Abmeldung um 19:57 Uhr)` 
+            : 'Automatische System-Abmeldung um 19:57 Uhr'
         })
         .eq('id', entry.id)
 
