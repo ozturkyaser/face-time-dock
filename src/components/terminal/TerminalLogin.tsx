@@ -17,61 +17,69 @@ export const TerminalLogin = ({ onLoginSuccess }: TerminalLoginProps) => {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  const hashPassword = async (password: string): Promise<string> => {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      // Use Edge Function to verify terminal credentials
-      const { data, error } = await supabase.functions.invoke('verify-terminal-password', {
-        body: { username, password }
-      });
+      const passwordHash = await hashPassword(password);
 
-      if (error) {
-        console.error("Login error:", error);
-        toast.error("Anmeldefehler");
-        setIsLoading(false);
-        return;
-      }
+      const { data, error } = await supabase
+        .from("terminals")
+        .select(`
+          *,
+          locations(
+            name,
+            latitude,
+            longitude,
+            geofence_radius_meters
+          )
+        `)
+        .eq("username", username)
+        .eq("password_hash", passwordHash)
+        .eq("is_active", true)
+        .single();
 
-      if (!data?.valid || !data?.terminal) {
+      if (error || !data) {
         toast.error("Ungültige Anmeldedaten");
         setIsLoading(false);
         return;
       }
 
-      const terminal = data.terminal;
-
-      // Fetch location details for geofence check
-      const { data: locationData } = await supabase
-        .from('locations')
-        .select('latitude, longitude, geofence_radius_meters')
-        .eq('id', terminal.location_id)
-        .single();
-
-      // Check geofence
-      const geofenceCheck = await checkGeofence(
-        locationData?.latitude || null,
-        locationData?.longitude || null,
-        locationData?.geofence_radius_meters || null
+      // Check geofencing before allowing login
+      const geofenceResult = await checkGeofence(
+        data.locations.latitude,
+        data.locations.longitude,
+        data.locations.geofence_radius_meters
       );
-      
-      if (!geofenceCheck.allowed) {
-        const distance = geofenceCheck.distance || 0;
-        const formattedDistance = formatDistance(distance);
-        toast.error(
-          `Sie sind außerhalb des erlaubten Bereichs (${formattedDistance} entfernt)`,
-          { duration: 5000 }
-        );
+
+      if (!geofenceResult.allowed) {
+        if (geofenceResult.error) {
+          toast.error(`Standortfehler: ${geofenceResult.error}`);
+        } else if (geofenceResult.distance) {
+          toast.error(
+            `Zugriff verweigert: Sie befinden sich ${formatDistance(geofenceResult.distance)} vom Terminal-Standort entfernt. Dieses Terminal kann nur am Standort "${data.locations.name}" verwendet werden.`
+          );
+        } else {
+          toast.error("Zugriff verweigert: Sie befinden sich nicht am richtigen Standort");
+        }
         setIsLoading(false);
         return;
       }
 
-      toast.success("Erfolgreich angemeldet");
-      onLoginSuccess(terminal.id, terminal.location_id, terminal.location_name);
+      toast.success(`Angemeldet als ${data.name}`);
+      onLoginSuccess(data.id, data.location_id, data.locations.name);
     } catch (error) {
       console.error("Login error:", error);
-      toast.error("Anmeldefehler");
+      toast.error("Fehler bei der Anmeldung");
     } finally {
       setIsLoading(false);
     }

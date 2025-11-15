@@ -156,15 +156,10 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
 
       // Update PIN separately if provided
       if (formData.pin || pinValue) {
-        const { data: authData } = await supabase.auth.getSession();
-        
         const { error: pinError } = await supabase.functions.invoke('set-employee-pin', {
           body: { 
             employeeId: editingEmployee.id,
             pin: formData.pin || pinValue
-          },
-          headers: {
-            Authorization: `Bearer ${authData.session?.access_token}`
           }
         });
 
@@ -189,15 +184,10 @@ const EmployeeManagement = ({ onUpdate }: EmployeeManagementProps) => {
       // Set PIN separately if provided or use auto-generated
       const pinToUse = formData.pin || pinValue;
       if (pinToUse && newEmployee) {
-        const { data: authData } = await supabase.auth.getSession();
-        
         const { error: pinError } = await supabase.functions.invoke('set-employee-pin', {
           body: { 
             employeeId: newEmployee.id,
             pin: pinToUse
-          },
-          headers: {
-            Authorization: `Bearer ${authData.session?.access_token}`
           }
         });
 

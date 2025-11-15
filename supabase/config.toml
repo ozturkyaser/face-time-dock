@@ -67,16 +67,10 @@ backend = "postgres"
 verify_jwt = false
 
 [functions.face-recognition]
-verify_jwt = true
+verify_jwt = false
 
 [functions.verify-pin]
 verify_jwt = false
 
 [functions.set-employee-pin]
-verify_jwt = true
-
-[functions.set-terminal-password]
-verify_jwt = true
-
-[functions.verify-terminal-password]
 verify_jwt = false
