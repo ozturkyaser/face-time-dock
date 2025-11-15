@@ -130,6 +130,13 @@ export type Database = {
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "face_profiles_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
+            referencedRelation: "terminal_employees"
+            referencedColumns: ["id"]
+          },
         ]
       }
       locations: {
@@ -262,10 +269,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "salary_advances_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "terminal_employees"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "salary_advances_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "salary_advances_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_employees"
             referencedColumns: ["id"]
           },
         ]
@@ -377,6 +398,13 @@ export type Database = {
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "time_entries_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_employees"
+            referencedColumns: ["id"]
+          },
         ]
       }
       user_roles: {
@@ -473,17 +501,77 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "vacation_requests_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "terminal_employees"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "vacation_requests_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "vacation_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_employees"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
     Views: {
-      [_ in never]: never
+      terminal_employees: {
+        Row: {
+          barcode: string | null
+          default_break_minutes: number | null
+          department: string | null
+          employee_number: string | null
+          first_name: string | null
+          id: string | null
+          is_active: boolean | null
+          last_name: string | null
+          location_id: string | null
+          position: string | null
+        }
+        Insert: {
+          barcode?: string | null
+          default_break_minutes?: number | null
+          department?: string | null
+          employee_number?: string | null
+          first_name?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          last_name?: string | null
+          location_id?: string | null
+          position?: string | null
+        }
+        Update: {
+          barcode?: string | null
+          default_break_minutes?: number | null
+          department?: string | null
+          employee_number?: string | null
+          first_name?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          last_name?: string | null
+          location_id?: string | null
+          position?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employees_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       calculate_distance_meters: {
