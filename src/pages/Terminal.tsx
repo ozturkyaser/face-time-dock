@@ -222,25 +222,16 @@ const Terminal = () => {
     stopCamera(); // Kamera ausschalten
 
     try {
-      // Find employee by barcode with location data
-      const { data: employee, error } = await supabase
+      // Find employee by barcode
+      const { data: employee, error: employeeError } = await supabase
         .from("employees")
-        .select(`
-          *,
-          locations (
-            id,
-            name,
-            latitude,
-            longitude,
-            geofence_radius_meters
-          )
-        `)
+        .select("*")
         .eq("barcode", scannedBarcode)
         .eq("is_active", true)
         .maybeSingle();
 
-      if (error) {
-        console.error("Database error:", error);
+      if (employeeError) {
+        console.error("Database error:", employeeError);
         toast.error("Fehler bei der Datenbankabfrage");
         setBarcode("");
         setIsProcessing(false);
@@ -269,7 +260,27 @@ const Terminal = () => {
         return;
       }
 
-      await handleCheckInOut(employee);
+      // Load location data if employee has a location_id
+      let locationData = null;
+      if (employee.location_id) {
+        const { data: location } = await supabase
+          .from("locations")
+          .select("id, name, latitude, longitude, geofence_radius_meters")
+          .eq("id", employee.location_id)
+          .single();
+        
+        if (location) {
+          locationData = location;
+        }
+      }
+
+      // Combine employee and location data
+      const employeeWithLocation = {
+        ...employee,
+        locations: locationData
+      };
+
+      await handleCheckInOut(employeeWithLocation);
       setBarcode("");
     } catch (error) {
       console.error("Error during barcode authentication:", error);
