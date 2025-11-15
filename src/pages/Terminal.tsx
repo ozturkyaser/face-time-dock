@@ -54,16 +54,21 @@ const Terminal = () => {
   }, []);
 
   useEffect(() => {
-    if (scanMode === 'input' && barcodeInputRef.current) {
-      barcodeInputRef.current.focus();
+    if (scanMode === 'input') {
+      stopCamera();
+      if (barcodeInputRef.current) {
+        barcodeInputRef.current.focus();
+      }
     } else if (scanMode === 'camera' && !isCameraActive) {
       startCamera();
     }
     
     return () => {
-      stopCamera();
+      if (scanMode === 'camera') {
+        stopCamera();
+      }
     };
-  }, [scanMode]);
+  }, [scanMode, isCameraActive]);
 
   const loadCheckedInEmployees = async () => {
     const { data, error } = await supabase
@@ -90,11 +95,11 @@ const Terminal = () => {
     try {
       console.log("Starting camera...");
       
-      // First cleanup any existing camera
-      stopCamera();
-      
-      // Wait a bit to ensure cleanup is complete
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Check if camera is already active
+      if (isCameraActive) {
+        console.log("Camera already active, skipping start");
+        return;
+      }
 
       const codeReader = new BrowserMultiFormatReader();
       
