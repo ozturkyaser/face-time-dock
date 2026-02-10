@@ -324,39 +324,56 @@ const Terminal = () => {
         icon: <XCircle className="h-5 w-5 text-destructive" />
       });
     } else {
-      // Check in - perform geofence check
+      // Check in - perform geofence check (skip if any active terminal for this location has geofence disabled)
       if (employee.locations) {
-        const geofenceResult = await checkGeofence(
-          employee.locations.latitude,
-          employee.locations.longitude,
-          employee.locations.geofence_radius_meters
-        );
+        let skipGeofence = false;
+        
+        // Check if any active terminal at this location has geofence disabled
+        const { data: terminalData } = await supabase
+          .from("terminals")
+          .select("geofence_disabled")
+          .eq("location_id", employee.locations.id)
+          .eq("is_active", true)
+          .eq("geofence_disabled", true)
+          .limit(1);
+        
+        if (terminalData && terminalData.length > 0) {
+          skipGeofence = true;
+        }
 
-        if (!geofenceResult.allowed) {
-          if (geofenceResult.error) {
-            toast.error(`Standortfehler: ${geofenceResult.error}`, {
-              description: "Bitte aktivieren Sie die Standortfreigabe"
-            });
-          } else if (geofenceResult.distance) {
-            toast.error(
-              `Einstempeln nicht möglich`,
-              {
-                description: `Sie befinden sich ${formatDistance(geofenceResult.distance)} vom Standort "${employee.locations.name}" entfernt. Erlaubter Radius: ${formatDistance(employee.locations.geofence_radius_meters)}`
-              }
-            );
-          } else {
-            toast.error("Einstempeln nicht möglich", {
-              description: "Sie befinden sich nicht am richtigen Standort"
-            });
+        if (!skipGeofence) {
+          const geofenceResult = await checkGeofence(
+            employee.locations.latitude,
+            employee.locations.longitude,
+            employee.locations.geofence_radius_meters
+          );
+
+          if (!geofenceResult.allowed) {
+            if (geofenceResult.error) {
+              toast.error(`Standortfehler: ${geofenceResult.error}`, {
+                description: "Bitte aktivieren Sie die Standortfreigabe"
+              });
+            } else if (geofenceResult.distance) {
+              toast.error(
+                `Einstempeln nicht möglich`,
+                {
+                  description: `Sie befinden sich ${formatDistance(geofenceResult.distance)} vom Standort "${employee.locations.name}" entfernt. Erlaubter Radius: ${formatDistance(employee.locations.geofence_radius_meters)}`
+                }
+              );
+            } else {
+              toast.error("Einstempeln nicht möglich", {
+                description: "Sie befinden sich nicht am richtigen Standort"
+              });
+            }
+            setIsProcessing(false);
+            isProcessingRef.current = false;
+            if (scanMode === 'camera') {
+              scanningEnabledRef.current = true;
+              setScanningEnabled(true);
+              startCamera();
+            }
+            return;
           }
-          setIsProcessing(false);
-          isProcessingRef.current = false;
-          if (scanMode === 'camera') {
-            scanningEnabledRef.current = true;
-            setScanningEnabled(true);
-            startCamera();
-          }
-          return;
         }
       }
 
