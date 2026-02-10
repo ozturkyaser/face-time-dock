@@ -468,35 +468,9 @@ const Terminal = () => {
       )}
 
       <div className="max-w-4xl mx-auto space-y-8">
-        <div className="text-center space-y-2">
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            Zeiterfassung Terminal
-          </h1>
-          <p className="text-xl text-muted-foreground">
-            Scannen Sie Ihren QR-Code zum An- oder Abmelden
-          </p>
-        </div>
-
-        <Card className="p-12 shadow-xl">
-          <div className="space-y-8">
-            <div className="text-center space-y-4">
-              <div className="mx-auto w-32 h-32 rounded-full bg-primary/10 flex items-center justify-center">
-                {scanMode === 'camera' ? (
-                  <Camera className="h-16 w-16 text-primary animate-pulse" />
-                ) : (
-                  <Scan className="h-16 w-16 text-primary animate-pulse" />
-                )}
-              </div>
-              <h2 className="text-3xl font-bold">
-                {scanMode === 'camera' ? 'QR-Code mit Kamera scannen' : 'QR-Code scannen'}
-              </h2>
-              <p className="text-xl text-muted-foreground">
-                {scanMode === 'camera' 
-                  ? 'Halten Sie den QR-Code vor die Kamera' 
-                  : 'Bitte scannen Sie Ihren Mitarbeiter-QR-Code'}
-              </p>
-            </div>
-
+        {/* Kamera/Scanner ganz oben */}
+        <Card className="p-8 shadow-xl">
+          <div className="space-y-6">
             <div className="flex gap-2 justify-center flex-wrap">
               <Button
                 variant={scanMode === 'camera' ? 'default' : 'outline'}
@@ -634,6 +608,15 @@ const Terminal = () => {
             )}
           </div>
         </Card>
+
+        <div className="text-center space-y-2">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            Zeiterfassung Terminal
+          </h1>
+          <p className="text-lg text-muted-foreground">
+            Scannen Sie Ihren QR-Code zum An- oder Abmelden
+          </p>
+        </div>
 
         {checkedInEmployees.length > 0 && (
           <Card className="p-8 shadow-xl">

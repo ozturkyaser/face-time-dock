@@ -3,9 +3,28 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Clock, Save, Calendar } from "lucide-react";
+import { Clock, Save, Calendar, Monitor, RefreshCw, MapPin } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+interface Terminal {
+  id: string;
+  name: string;
+  username: string;
+  is_active: boolean;
+  is_permanent: boolean;
+  geofence_disabled: boolean;
+  locations: { name: string };
+}
 
 export const SystemSettings = () => {
   const [weekdayHour, setWeekdayHour] = useState("19");
@@ -15,11 +34,26 @@ export const SystemSettings = () => {
   const [lateHour, setLateHour] = useState("9");
   const [lateMinute, setLateMinute] = useState("10");
   const [isLoading, setIsLoading] = useState(false);
+  const [terminals, setTerminals] = useState<Terminal[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
     loadSettings();
+    loadTerminals();
   }, []);
+
+  const loadTerminals = async () => {
+    const { data, error } = await supabase
+      .from("terminals")
+      .select("id, name, username, is_active, is_permanent, geofence_disabled, locations(name)")
+      .order("name");
+
+    if (error) {
+      console.error("Error loading terminals:", error);
+      return;
+    }
+    setTerminals((data as any) || []);
+  };
 
   const loadSettings = async () => {
     try {
@@ -53,6 +87,30 @@ export const SystemSettings = () => {
     }
   };
 
+  const handleToggleTerminal = async (terminalId: string, field: 'is_permanent' | 'geofence_disabled', value: boolean) => {
+    const { error } = await supabase
+      .from("terminals")
+      .update({ [field]: value })
+      .eq("id", terminalId);
+
+    if (error) {
+      toast({
+        title: "Fehler",
+        description: "Terminal konnte nicht aktualisiert werden",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setTerminals(prev =>
+      prev.map(t => t.id === terminalId ? { ...t, [field]: value } : t)
+    );
+    toast({
+      title: "Gespeichert",
+      description: "Terminal-Einstellung aktualisiert",
+    });
+  };
+
   const handleSave = async () => {
     const wdHour = parseInt(weekdayHour);
     const wdMinute = parseInt(weekdayMinute);
@@ -79,24 +137,15 @@ export const SystemSettings = () => {
       const updates = [
         supabase
           .from('system_settings')
-          .update({
-            value: { hour: wdHour, minute: wdMinute },
-            updated_at: new Date().toISOString()
-          })
+          .update({ value: { hour: wdHour, minute: wdMinute }, updated_at: new Date().toISOString() })
           .eq('key', 'auto_checkout_time'),
         supabase
           .from('system_settings')
-          .update({
-            value: { hour: weHour, minute: weMinute },
-            updated_at: new Date().toISOString()
-          })
+          .update({ value: { hour: weHour, minute: weMinute }, updated_at: new Date().toISOString() })
           .eq('key', 'auto_checkout_time_weekend'),
         supabase
           .from('system_settings')
-          .update({
-            value: { hour: ltHour, minute: ltMinute },
-            updated_at: new Date().toISOString()
-          })
+          .update({ value: { hour: ltHour, minute: ltMinute }, updated_at: new Date().toISOString() })
           .eq('key', 'late_checkin_time')
       ];
 
@@ -108,7 +157,7 @@ export const SystemSettings = () => {
 
       toast({
         title: "Erfolgreich gespeichert",
-        description: `Einstellungen erfolgreich aktualisiert`,
+        description: "Einstellungen erfolgreich aktualisiert",
       });
     } catch (error) {
       console.error('Error saving settings:', error);
@@ -122,117 +171,169 @@ export const SystemSettings = () => {
     }
   };
 
+  const handleRestart = () => {
+    window.location.reload();
+  };
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Clock className="h-5 w-5" />
-          Systemeinstellungen
-        </CardTitle>
-        <CardDescription>
-          Konfigurieren Sie die automatische Abmeldezeit für Wochentage und Wochenenden
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="space-y-2">
-          <Label className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            Wochentage (Mo-Fr)
-          </Label>
-          <div className="flex items-center gap-2">
-            <Input
-              type="number"
-              min="0"
-              max="23"
-              value={weekdayHour}
-              onChange={(e) => setWeekdayHour(e.target.value.padStart(2, '0'))}
-              className="w-20 text-center"
-              placeholder="HH"
-            />
-            <span className="text-lg font-semibold">:</span>
-            <Input
-              type="number"
-              min="0"
-              max="59"
-              value={weekdayMinute}
-              onChange={(e) => setWeekdayMinute(e.target.value.padStart(2, '0'))}
-              className="w-20 text-center"
-              placeholder="MM"
-            />
-            <span className="ml-2 text-muted-foreground">Uhr</span>
-          </div>
-        </div>
+    <div className="space-y-6">
+      {/* Verbundene Terminals */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Monitor className="h-5 w-5" />
+            Verbundene Terminals (Mag-ID)
+          </CardTitle>
+          <CardDescription>
+            Übersicht aller Terminals mit Optionen für dauerhafte Verbindung und Radiusbegrenzung
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {terminals.length === 0 ? (
+            <p className="text-muted-foreground text-sm">Keine Terminals konfiguriert.</p>
+          ) : (
+            <div className="border rounded-lg">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name / ID</TableHead>
+                    <TableHead>Standort</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-center">Dauerhaft</TableHead>
+                    <TableHead className="text-center">Keine Radiusbegrenzung</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {terminals.map((terminal) => (
+                    <TableRow key={terminal.id}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{terminal.name}</p>
+                          <p className="text-xs text-muted-foreground font-mono">{terminal.id.slice(0, 8)}...</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>{terminal.locations?.name || "-"}</TableCell>
+                      <TableCell>
+                        <span className={terminal.is_active ? "text-green-600 font-medium" : "text-red-600"}>
+                          {terminal.is_active ? "Aktiv" : "Inaktiv"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Switch
+                          checked={terminal.is_permanent}
+                          onCheckedChange={(val) => handleToggleTerminal(terminal.id, 'is_permanent', val)}
+                        />
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Switch
+                          checked={terminal.geofence_disabled}
+                          onCheckedChange={(val) => handleToggleTerminal(terminal.id, 'geofence_disabled', val)}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-        <div className="space-y-2">
-          <Label className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            Wochenende (Sa-So)
-          </Label>
-          <div className="flex items-center gap-2">
-            <Input
-              type="number"
-              min="0"
-              max="23"
-              value={weekendHour}
-              onChange={(e) => setWeekendHour(e.target.value.padStart(2, '0'))}
-              className="w-20 text-center"
-              placeholder="HH"
-            />
-            <span className="text-lg font-semibold">:</span>
-            <Input
-              type="number"
-              min="0"
-              max="59"
-              value={weekendMinute}
-              onChange={(e) => setWeekendMinute(e.target.value.padStart(2, '0'))}
-              className="w-20 text-center"
-              placeholder="MM"
-            />
-            <span className="ml-2 text-muted-foreground">Uhr</span>
+      {/* Zeiteinstellungen */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5" />
+            Zeiteinstellungen
+          </CardTitle>
+          <CardDescription>
+            Konfigurieren Sie die automatische Abmeldezeit und Verspätungsgrenze
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              Wochentage (Mo-Fr)
+            </Label>
+            <div className="flex items-center gap-2">
+              <Input type="number" min="0" max="23" value={weekdayHour}
+                onChange={(e) => setWeekdayHour(e.target.value.padStart(2, '0'))}
+                className="w-20 text-center" placeholder="HH" />
+              <span className="text-lg font-semibold">:</span>
+              <Input type="number" min="0" max="59" value={weekdayMinute}
+                onChange={(e) => setWeekdayMinute(e.target.value.padStart(2, '0'))}
+                className="w-20 text-center" placeholder="MM" />
+              <span className="ml-2 text-muted-foreground">Uhr</span>
+            </div>
           </div>
-        </div>
 
-        <div className="space-y-2">
-          <Label className="flex items-center gap-2">
-            <Clock className="h-4 w-4" />
-            Verspätungsgrenze
-          </Label>
-          <div className="flex items-center gap-2">
-            <Input
-              type="number"
-              min="0"
-              max="23"
-              value={lateHour}
-              onChange={(e) => setLateHour(e.target.value.padStart(2, '0'))}
-              className="w-20 text-center"
-              placeholder="HH"
-            />
-            <span className="text-lg font-semibold">:</span>
-            <Input
-              type="number"
-              min="0"
-              max="59"
-              value={lateMinute}
-              onChange={(e) => setLateMinute(e.target.value.padStart(2, '0'))}
-              className="w-20 text-center"
-              placeholder="MM"
-            />
-            <span className="ml-2 text-muted-foreground">Uhr</span>
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              Wochenende (Sa-So)
+            </Label>
+            <div className="flex items-center gap-2">
+              <Input type="number" min="0" max="23" value={weekendHour}
+                onChange={(e) => setWeekendHour(e.target.value.padStart(2, '0'))}
+                className="w-20 text-center" placeholder="HH" />
+              <span className="text-lg font-semibold">:</span>
+              <Input type="number" min="0" max="59" value={weekendMinute}
+                onChange={(e) => setWeekendMinute(e.target.value.padStart(2, '0'))}
+                className="w-20 text-center" placeholder="MM" />
+              <span className="ml-2 text-muted-foreground">Uhr</span>
+            </div>
           </div>
+
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              Verspätungsgrenze
+            </Label>
+            <div className="flex items-center gap-2">
+              <Input type="number" min="0" max="23" value={lateHour}
+                onChange={(e) => setLateHour(e.target.value.padStart(2, '0'))}
+                className="w-20 text-center" placeholder="HH" />
+              <span className="text-lg font-semibold">:</span>
+              <Input type="number" min="0" max="59" value={lateMinute}
+                onChange={(e) => setLateMinute(e.target.value.padStart(2, '0'))}
+                className="w-20 text-center" placeholder="MM" />
+              <span className="ml-2 text-muted-foreground">Uhr</span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Mitarbeiter die nach dieser Zeit einstempeln werden als verspätet markiert
+            </p>
+          </div>
+
           <p className="text-sm text-muted-foreground">
-            Mitarbeiter die nach dieser Zeit einstempeln werden als verspätet markiert
+            Alle nicht abgemeldeten Mitarbeiter werden automatisch zur konfigurierten Zeit abgemeldet (Berliner Zeit).
           </p>
-        </div>
 
-        <p className="text-sm text-muted-foreground">
-          Alle nicht abgemeldeten Mitarbeiter werden automatisch zur konfigurierten Zeit abgemeldet (Berliner Zeit).
-        </p>
+          <Button onClick={handleSave} disabled={isLoading}>
+            <Save className="h-4 w-4 mr-2" />
+            Speichern
+          </Button>
+        </CardContent>
+      </Card>
 
-        <Button onClick={handleSave} disabled={isLoading}>
-          <Save className="h-4 w-4 mr-2" />
-          Speichern
-        </Button>
-      </CardContent>
-    </Card>
+      {/* Neustart */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <RefreshCw className="h-5 w-5" />
+            Applikation
+          </CardTitle>
+          <CardDescription>
+            Seite neu laden und Applikation neustarten
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="outline" onClick={handleRestart} className="gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Applikation neustarten
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
   );
 };

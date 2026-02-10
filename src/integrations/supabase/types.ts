@@ -321,8 +321,10 @@ export type Database = {
       terminals: {
         Row: {
           created_at: string
+          geofence_disabled: boolean
           id: string
           is_active: boolean
+          is_permanent: boolean
           location_id: string
           name: string
           password_hash: string
@@ -331,8 +333,10 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          geofence_disabled?: boolean
           id?: string
           is_active?: boolean
+          is_permanent?: boolean
           location_id: string
           name: string
           password_hash: string
@@ -341,8 +345,10 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          geofence_disabled?: boolean
           id?: string
           is_active?: boolean
+          is_permanent?: boolean
           location_id?: string
           name?: string
           password_hash?: string
