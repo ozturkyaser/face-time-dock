@@ -467,204 +467,211 @@ const Terminal = () => {
         </div>
       )}
 
-      <div className="max-w-4xl mx-auto space-y-8">
-        {/* Kamera/Scanner ganz oben */}
-        <Card className="p-8 shadow-xl">
-          <div className="space-y-6">
-            <div className="flex gap-2 justify-center flex-wrap">
-              <Button
-                variant={scanMode === 'camera' ? 'default' : 'outline'}
-                onClick={() => {
-                  setScanMode('camera');
-                  if (!isCameraActive) {
-                    startCamera();
-                  }
-                }}
-                disabled={isProcessing}
-              >
-                <Camera className="h-4 w-4 mr-2" />
-                Kamera
-              </Button>
-              <Button
-                variant={scanMode === 'input' ? 'default' : 'outline'}
-                onClick={() => {
-                  setScanMode('input');
-                  stopCamera();
-                }}
-                disabled={isProcessing}
-              >
-                <Scan className="h-4 w-4 mr-2" />
-                Scanner
-              </Button>
-              {scanMode === 'camera' && availableCameras.length > 1 && (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setCameraFacing(prev => prev === 'back' ? 'front' : 'back');
-                    if (isCameraActive) {
-                      startCamera();
-                    }
-                  }}
-                  disabled={isProcessing}
-                >
-                  <SwitchCamera className="h-4 w-4 mr-2" />
-                  {cameraFacing === 'back' ? 'Vorne' : 'Hinten'}
-                </Button>
-              )}
-            </div>
-
-            {scanMode === 'input' ? (
-              <div className="space-y-4">
-                <Input
-                  ref={barcodeInputRef}
-                  type="text"
-                  value={barcode}
-                  onChange={(e) => setBarcode(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      handleBarcodeSubmit(barcode);
-                    }
-                  }}
-                  className="w-full h-16 text-center text-2xl font-mono"
-                  placeholder="QR-Code wird hier angezeigt..."
-                  disabled={isProcessing}
-                  autoFocus
-                />
-                <p className="text-sm text-muted-foreground text-center">
-                  Der Scanner fügt den Code automatisch ein
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
-                  <video
-                    ref={videoRef}
-                    className="w-full h-full object-cover"
-                    autoPlay
-                    playsInline
-                  />
-                  {!isCameraActive && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-muted">
-                      <p className="text-muted-foreground">Kamera wird gestartet...</p>
-                    </div>
-                  )}
-                  {isCameraActive && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <div className="w-64 h-32 border-4 border-primary rounded-lg shadow-lg">
-                        <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-lg"></div>
-                        <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-lg"></div>
-                        <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-lg"></div>
-                        <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-lg"></div>
-                      </div>
-                    </div>
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Linke Seite: Kamera/Scanner Hauptbereich */}
+          <div className="flex-1 space-y-6">
+            <Card className="p-8 shadow-xl">
+              <div className="space-y-6">
+                <div className="flex gap-2 justify-center flex-wrap">
+                  <Button
+                    variant={scanMode === 'camera' ? 'default' : 'outline'}
+                    onClick={() => {
+                      setScanMode('camera');
+                      if (!isCameraActive) {
+                        startCamera();
+                      }
+                    }}
+                    disabled={isProcessing}
+                  >
+                    <Camera className="h-4 w-4 mr-2" />
+                    Kamera
+                  </Button>
+                  <Button
+                    variant={scanMode === 'input' ? 'default' : 'outline'}
+                    onClick={() => {
+                      setScanMode('input');
+                      stopCamera();
+                    }}
+                    disabled={isProcessing}
+                  >
+                    <Scan className="h-4 w-4 mr-2" />
+                    Scanner
+                  </Button>
+                  {scanMode === 'camera' && availableCameras.length > 1 && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setCameraFacing(prev => prev === 'back' ? 'front' : 'back');
+                        if (isCameraActive) {
+                          startCamera();
+                        }
+                      }}
+                      disabled={isProcessing}
+                    >
+                      <SwitchCamera className="h-4 w-4 mr-2" />
+                      {cameraFacing === 'back' ? 'Vorne' : 'Hinten'}
+                    </Button>
                   )}
                 </div>
-                <p className="text-sm text-muted-foreground text-center">
-                  Halten Sie den QR-Code zentral im Zielbereich
-                </p>
-              </div>
-            )}
 
-            {isProcessing && (
-              <div className="text-center">
-                <Clock className="h-12 w-12 animate-spin mx-auto text-primary" />
-                <p className="mt-4 text-lg">Wird verarbeitet...</p>
-              </div>
-            )}
-
-            <div className="flex gap-3">
-              <Button
-                variant="outline"
-                onClick={() => setShowVacationScan(true)}
-                className="flex-1 h-14 text-base"
-                disabled={isProcessing}
-              >
-                <CalendarDays className="mr-2 h-5 w-5" />
-                Urlaubsantrag
-              </Button>
-            </div>
-
-            {lastCheckIn && (
-              <Card className="p-6 bg-gradient-to-br from-card to-card/50">
-                <div className="flex items-center gap-4">
-                  {lastCheckIn.type === "in" ? (
-                    <CheckCircle className="h-12 w-12 text-success" />
-                  ) : (
-                    <XCircle className="h-12 w-12 text-destructive" />
-                  )}
-                  <div>
-                    <p className="text-2xl font-bold">
-                      {lastCheckIn.first_name} {lastCheckIn.last_name}
-                    </p>
-                    <p className="text-muted-foreground">
-                      {lastCheckIn.type === "in" ? "Eingestempelt" : "Ausgestempelt"}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {new Date().toLocaleTimeString("de-DE")}
+                {scanMode === 'input' ? (
+                  <div className="space-y-4">
+                    <Input
+                      ref={barcodeInputRef}
+                      type="text"
+                      value={barcode}
+                      onChange={(e) => setBarcode(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          handleBarcodeSubmit(barcode);
+                        }
+                      }}
+                      className="w-full h-16 text-center text-2xl font-mono"
+                      placeholder="QR-Code wird hier angezeigt..."
+                      disabled={isProcessing}
+                      autoFocus
+                    />
+                    <p className="text-sm text-muted-foreground text-center">
+                      Der Scanner fügt den Code automatisch ein
                     </p>
                   </div>
-                </div>
-              </Card>
-            )}
-          </div>
-        </Card>
-
-        <div className="text-center space-y-2">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            Zeiterfassung Terminal
-          </h1>
-          <p className="text-lg text-muted-foreground">
-            Scannen Sie Ihren QR-Code zum An- oder Abmelden
-          </p>
-        </div>
-
-        {checkedInEmployees.length > 0 && (
-          <Card className="p-8 shadow-xl">
-            <div className="space-y-6">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center">
-                  <Users className="h-6 w-6 text-green-600" />
-                </div>
-                <div>
-                  <h3 className="text-2xl font-bold">Anwesende Mitarbeiter</h3>
-                  <p className="text-muted-foreground">{checkedInEmployees.length} Mitarbeiter aktuell angemeldet</p>
-                </div>
-              </div>
-
-              <div className="grid gap-4">
-                {checkedInEmployees.map((entry: any) => (
-                  <Card key={entry.id} className="p-4 bg-gradient-to-br from-green-500/5 to-green-500/10 border-green-500/20">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
-                          <LogIn className="h-5 w-5 text-green-600" />
+                ) : (
+                  <div className="space-y-4">
+                    <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
+                      <video
+                        ref={videoRef}
+                        className="w-full h-full object-cover"
+                        autoPlay
+                        playsInline
+                      />
+                      {!isCameraActive && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                          <p className="text-muted-foreground">Kamera wird gestartet...</p>
                         </div>
-                        <div>
-                          <p className="font-bold text-lg">
-                            {entry.employees.first_name} {entry.employees.last_name}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {entry.employees.position && `${entry.employees.position} • `}
-                            Nr. {entry.employees.employee_number}
-                          </p>
+                      )}
+                      {isCameraActive && (
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                          <div className="w-64 h-32 border-4 border-primary rounded-lg shadow-lg">
+                            <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-lg"></div>
+                            <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-lg"></div>
+                            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-lg"></div>
+                            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-lg"></div>
+                          </div>
                         </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-green-600">
-                          {new Date(entry.check_in).toLocaleTimeString("de-DE", {
-                            hour: "2-digit",
-                            minute: "2-digit"
-                          })}
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground text-center">
+                      Halten Sie den QR-Code zentral im Zielbereich
+                    </p>
+                  </div>
+                )}
+
+                {isProcessing && (
+                  <div className="text-center">
+                    <Clock className="h-12 w-12 animate-spin mx-auto text-primary" />
+                    <p className="mt-4 text-lg">Wird verarbeitet...</p>
+                  </div>
+                )}
+
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowVacationScan(true)}
+                    className="flex-1 h-14 text-base"
+                    disabled={isProcessing}
+                  >
+                    <CalendarDays className="mr-2 h-5 w-5" />
+                    Urlaubsantrag
+                  </Button>
+                </div>
+
+                {lastCheckIn && (
+                  <Card className="p-6 bg-gradient-to-br from-card to-card/50">
+                    <div className="flex items-center gap-4">
+                      {lastCheckIn.type === "in" ? (
+                        <CheckCircle className="h-12 w-12 text-success" />
+                      ) : (
+                        <XCircle className="h-12 w-12 text-destructive" />
+                      )}
+                      <div>
+                        <p className="text-2xl font-bold">
+                          {lastCheckIn.first_name} {lastCheckIn.last_name}
                         </p>
-                        <p className="text-sm text-muted-foreground">Eingestempelt</p>
+                        <p className="text-muted-foreground">
+                          {lastCheckIn.type === "in" ? "Eingestempelt" : "Ausgestempelt"}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date().toLocaleTimeString("de-DE")}
+                        </p>
                       </div>
                     </div>
                   </Card>
-                ))}
+                )}
               </div>
+            </Card>
+
+            <div className="text-center space-y-2">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                Zeiterfassung Terminal
+              </h1>
+              <p className="text-lg text-muted-foreground">
+                Scannen Sie Ihren QR-Code zum An- oder Abmelden
+              </p>
             </div>
-          </Card>
-        )}
+          </div>
+
+          {/* Rechte Seite: Anwesende Mitarbeiter */}
+          <div className="lg:w-80 xl:w-96 shrink-0">
+            <Card className="p-6 shadow-xl sticky top-8">
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Users className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold">Anwesende</h3>
+                    <p className="text-sm text-muted-foreground">{checkedInEmployees.length} angemeldet</p>
+                  </div>
+                </div>
+
+                {checkedInEmployees.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    Keine Mitarbeiter angemeldet
+                  </p>
+                ) : (
+                  <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+                    {checkedInEmployees.map((entry: any) => (
+                      <div key={entry.id} className="flex items-center justify-between p-3 rounded-lg bg-primary/5 border border-primary/10">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                            <LogIn className="h-4 w-4 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm">
+                              {entry.employees.first_name} {entry.employees.last_name}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Nr. {entry.employees.employee_number}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-sm text-primary">
+                            {new Date(entry.check_in).toLocaleTimeString("de-DE", {
+                              hour: "2-digit",
+                              minute: "2-digit"
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </Card>
+          </div>
+        </div>
       </div>
     </div>
   );
