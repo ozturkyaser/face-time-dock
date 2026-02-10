@@ -54,12 +54,14 @@ export const TerminalLogin = ({ onLoginSuccess }: TerminalLoginProps) => {
         return;
       }
 
-      // Check geofencing before allowing login
-      const geofenceResult = await checkGeofence(
-        data.locations.latitude,
-        data.locations.longitude,
-        data.locations.geofence_radius_meters
-      );
+      // Check geofencing before allowing login (skip if geofence_disabled)
+      const geofenceResult = data.geofence_disabled
+        ? { allowed: true }
+        : await checkGeofence(
+            data.locations.latitude,
+            data.locations.longitude,
+            data.locations.geofence_radius_meters
+          );
 
       if (!geofenceResult.allowed) {
         if (geofenceResult.error) {
